@@ -7,7 +7,11 @@ import DOM
 
 import Data.Int
 import Data.Maybe
+
 import Data.DOM.Simple.Types
+import Data.DOM.Simple.Element
+import Data.DOM.Simple.Window
+import Data.DOM.Simple.Document
 
 import Control.Monad (when)
 import Control.Monad.Eff
@@ -18,12 +22,6 @@ import qualified ECharts.Effects as EC
 
 import Halogen.HTML.Widget
 import Halogen.Internal.VirtualDOM (Widget())
-
--- todo: PR on simple-dom
-foreign import createDiv
-  "function createDiv() {\
-  \  return document.createElement('div');\
-  \}" :: forall eff. Eff (dom :: DOM | eff) HTMLElement
 
 type ECEffects eff = ( echartInit :: EC.EChartInit
                      , echartSetOption :: EC.EChartOptionSet
@@ -51,7 +49,8 @@ chart id version opts = widget spec
 
   init :: Eff (ECEffects eff) { context :: EC.EChart, node :: HTMLElement }
   init = do
-    node <- createDiv
+    w <- document globalWindow
+    Just node <- getElementById id w
     ec <- EC.init Nothing node
     EC.setOption opts false ec
     return { context: ec, node: node }
