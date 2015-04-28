@@ -9,6 +9,7 @@ import Data.Int
 import Data.Maybe
 import Data.DOM.Simple.Types
 
+import Control.Monad (when)
 import Control.Monad.Eff
 
 import qualified ECharts.Chart as EC
@@ -38,25 +39,27 @@ type ECEffects eff = ( echartInit :: EC.EChartInit
 -- | The second argument is a version number which can be used to detect when the 
 -- | `update` function should be called.
 chart :: forall eff res. String -> Int -> EC.Option -> Widget (ECEffects eff) res
-chart _id _ref opts = widget spec
+chart id version opts = widget spec
   where
-  spec = { ref: _ref
+  spec = { value: version
          , name: "echarts"
-         , id: _id 
+         , id: id 
          , init: const init
          , update: update
          , destroy: destroy
          }
 
-  init :: Eff (ECEffects eff) { state :: EC.EChart, node :: HTMLElement }
+  init :: Eff (ECEffects eff) { context :: EC.EChart, node :: HTMLElement }
   init = do
     node <- createDiv
     ec <- EC.init Nothing node
-    return { state: ec, node: node }
-
-  update :: EC.EChart -> HTMLElement -> Eff (ECEffects eff) (Maybe HTMLElement)
-  update ec _ = do
     EC.setOption opts false ec
+    return { context: ec, node: node }
+
+  update :: Int -> Int -> EC.EChart -> HTMLElement -> Eff (ECEffects eff) (Maybe HTMLElement)
+  update _ prevVersion ec _ = do
+    when (version > prevVersion) $ 
+      void $ EC.setOption opts false ec
     return Nothing
 
   destroy :: EC.EChart -> HTMLElement -> Eff (ECEffects eff) Unit
