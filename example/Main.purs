@@ -1,8 +1,10 @@
 module Main where
 
+import Data.Int
 import Data.Void
 import Data.Tuple
 import Data.Maybe
+import Data.Either
 
 import Control.Bind
 import Control.Monad.Eff
@@ -13,7 +15,6 @@ import Data.DOM.Simple.Document
 import Data.DOM.Simple.Element
 import Data.DOM.Simple.Types
 import Data.DOM.Simple.Window
-
 
 import ECharts.Chart
 import ECharts.Options
@@ -45,13 +46,33 @@ appendToBody e = do
   b <- body w 
   appendChild b e
 
-ui :: forall m i eff. (Applicative m) => Component (H.Widget (ECEffects eff) i) m i i
-ui = component (pure (H.placeholder (chart "example-chart" zero opts)))
-  where 
-  simpleData = Value <<< Simple
+foreign import createDiv
+  "function createDiv() {\
+  \  var div = document.createElement('div');\
+  \  div.style.height = '400px';\
+  \  return div;\
+  \}" :: forall eff. Eff (dom :: DOM | eff) HTMLElement
 
-  opts :: Option
-  opts = Option $ optionDefault
+type State = { version :: Int, smooth :: Boolean }
+
+data ToggleSmooth = ToggleSmooth
+
+type Input = Either EChartsEvent ToggleSmooth
+
+ui :: forall m eff. (Applicative m) => Component (H.Widget (ECEffects eff) Input) m Input Input
+ui = component (render <$> stateful { version: zero :: Int, smooth: false } update)
+  where 
+  render :: State -> H.HTML (H.Widget (ECEffects eff) Input) (m Input)
+  render o = H.div_ [ H.placeholder (Left <$> chart "example-chart" createDiv o.version (opts o.smooth))
+                    , H.p_ [ H.button [ A.onClick (A.input_ (Right ToggleSmooth)) ] [ H.text "Toggle Smooth" ] ]
+                    ]
+  
+  update :: State -> Input -> State
+  update o (Left _)  = o { version = o.version + one }
+  update o (Right _) = o { version = o.version + one, smooth = not o.smooth }
+  
+  opts :: Boolean -> Option
+  opts smooth = Option $ optionDefault
                   { xAxis = Just $ OneAxis $ Axis $ axisDefault 
                        { "type" = Just CategoryAxis
                        , boundaryGap = Just $ CatBoundaryGap false
@@ -69,7 +90,8 @@ ui = component (pure (H.placeholder (chart "example-chart" zero opts)))
                               }
                           , lineSeries: lineSeriesDefault
                              { stack = Just "total"
-                             , "data" = Just $ simpleData <$> [120, 132, 101, 134, 90, 230, 210]
+                             , "data" = Just $ Value <<< Simple <$> [120, 132, 101, 134, 90, 230, 210]
+                             , smooth = Just smooth
                              }
                           }
                       ]
