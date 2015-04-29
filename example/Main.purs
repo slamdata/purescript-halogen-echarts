@@ -46,6 +46,7 @@ appendToBody e = do
   b <- body w 
   appendChild b e
 
+-- | When we create the container, we must make sure it has a height.
 foreign import createDiv
   "function createDiv() {\
   \  var div = document.createElement('div');\
@@ -53,24 +54,32 @@ foreign import createDiv
   \  return div;\
   \}" :: forall eff. Eff (dom :: DOM | eff) HTMLElement
 
-type State = { version :: Int, smooth :: Boolean }
-
+-- | Toggle the smooth rendering flag
 data ToggleSmooth = ToggleSmooth
 
+-- | The state object:
+-- |
+-- | - the version of the chart, to enable repainting
+-- | - a flag to toggle smooth lines
+type State = { version :: Int, smooth :: Boolean }
+
+-- | An input is either an ECharts event or a request to toggle smoothness
 type Input = Either EChartsEvent ToggleSmooth
 
 ui :: forall m eff. (Applicative m) => Component (H.Widget (ECEffects eff) Input) m Input Input
 ui = component (render <$> stateful { version: zero :: Int, smooth: false } update)
-  where 
+  where
   render :: State -> H.HTML (H.Widget (ECEffects eff) Input) (m Input)
   render o = H.div_ [ H.placeholder (Left <$> chart "example-chart" createDiv o.version (opts o.smooth))
                     , H.p_ [ H.button [ A.onClick (A.input_ (Right ToggleSmooth)) ] [ H.text "Toggle Smooth" ] ]
                     ]
   
+  -- | Update the state (note, we bump the version to ensure the chart gets updated)
   update :: State -> Input -> State
   update o (Left _)  = o { version = o.version + one }
   update o (Right _) = o { version = o.version + one, smooth = not o.smooth }
   
+  -- | Line series data
   opts :: Boolean -> Option
   opts smooth = Option $ optionDefault
                   { xAxis = Just $ OneAxis $ Axis $ axisDefault 
