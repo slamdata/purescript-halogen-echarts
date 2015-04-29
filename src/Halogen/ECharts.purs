@@ -1,12 +1,23 @@
 -- | This module defines an adapter between Halogen's widget API and
 -- | the `purescript-echarts` library.
 
-module Halogen.ECharts (ECEffects(), chart) where
+module Halogen.ECharts 
+  ( EChartsContext()
+  , ECEffects()
+  , chart
+  , newContext
+  , init
+  , postRender
+  ) where
 
 import DOM
 
 import Data.Int
 import Data.Maybe
+import Data.Function
+import Data.Foldable (for_)
+
+import qualified Data.StrMap as M
 
 import Data.DOM.Simple.Types
 import Data.DOM.Simple.Element
@@ -15,52 +26,83 @@ import Data.DOM.Simple.Document
 
 import Control.Monad (when)
 import Control.Monad.Eff
+import Control.Monad.Eff.Ref
 
 import qualified ECharts.Chart as EC
 import qualified ECharts.Options as EC
 import qualified ECharts.Effects as EC
 
-import Halogen.HTML.Widget
-import Halogen.Internal.VirtualDOM (Widget())
+import qualified Halogen.HTML as H
+import qualified Halogen.HTML.Attributes as A
 
 type ECEffects eff = ( echartInit :: EC.EChartInit
                      , echartSetOption :: EC.EChartOptionSet
                      , echartDispose :: EC.EChartDispose
                      , dom :: DOM 
+                     , ref :: Ref
                      | eff)
 
--- | Create a component which responds to inputs of type `Option` by updating a
--- | chart component with those options.
--- |
--- | The first argument should be a unique identifier for this component.
--- |
--- | The second argument is a version number which can be used to detect when the 
--- | `update` function should be called.
-chart :: forall eff res. String -> Int -> EC.Option -> Widget (ECEffects eff) res
-chart id version opts = widget spec
-  where
-  spec = { value: version
-         , name: "echarts"
-         , id: id 
-         , init: const init
-         , update: update
-         , destroy: destroy
-         }
+-- | The ECharts context, which should be passed to the initialization 
+-- | and post-render hooks.
+newtype EChartsContext = EChartsContext (RefVal (M.StrMap EC.EChart))
 
-  init :: Eff (ECEffects eff) { context :: EC.EChart, node :: HTMLElement }
-  init = do
-    w <- document globalWindow
-    Just node <- getElementById id w
-    ec <- EC.init Nothing node
-    EC.setOption opts false ec
-    return { context: ec, node: node }
+-- | Create a new ECharts context.
+newContext :: forall eff. Eff (ref :: Ref | eff) EChartsContext
+newContext = EChartsContext <$> newRef M.empty
 
-  update :: Int -> Int -> EC.EChart -> HTMLElement -> Eff (ECEffects eff) (Maybe HTMLElement)
-  update _ prevVersion ec _ = do
-    when (version > prevVersion) $ 
-      void $ EC.setOption opts false ec
-    return Nothing
-
-  destroy :: EC.EChart -> HTMLElement -> Eff (ECEffects eff) Unit
-  destroy ec _ = EC.dispose ec
+-- | The initialization hook, which creates ECharts components.
+init :: forall eff. EChartsContext -> HTMLElement -> Eff (ECEffects eff) Unit
+init (EChartsContext ref) node = do
+  els <- querySelector "[data-halogen-echarts-id]" node
+  for_ els \el -> do
+    -- Get the key
+    key <- getAttribute "data-halogen-echarts-id" el
+    -- Setup the ECharts component
+    m <- readRef ref
+    ec <- case M.lookup key m of
+      Nothing -> do
+        -- Create a new ECharts object and store it in the map
+        ec <- EC.init Nothing el
+        modifyRef ref (M.insert key ec)
+        return ec
+      Just ec -> return ec
+    updateOptions el ec
   
+-- | The post-render hook, which updates any ECharts components.
+postRender :: forall eff driver. EChartsContext -> HTMLElement -> driver -> Eff (ECEffects eff) Unit
+postRender (EChartsContext ref) node _ = do
+  els <- querySelector "[data-halogen-echarts-id]" node
+  m <- readRef ref
+  for_ els \el -> do
+    -- Get the key
+    key <- getAttribute "data-halogen-echarts-id" el
+    for_ (M.lookup key m) (updateOptions el)
+      
+foreign import getOptions
+  "function getOptions(node) {\
+  \  return function() {\
+  \    return node['halogen-echarts-options'];\
+  \  };\
+  \}" :: forall eff. HTMLElement -> Eff (dom :: DOM | eff) EC.Option
+      
+updateOptions :: forall eff. HTMLElement -> EC.EChart -> Eff (ECEffects eff) Unit
+updateOptions node ec = void do
+  opts <- getOptions node
+  EC.setOption opts false ec
+
+-- | Create a chart component
+chart :: forall i. String -> Number -> EC.Option -> H.HTML i
+chart key height opts = H.div [ A.style (A.styles (M.singleton "height" (show height <> "px")))
+                              , dataHalogenEChartsID key
+                              , dataHalogenEChartsOptions opts
+                              ] []
+  where
+  -- | Custom attributes
+  dataHalogenEChartsID :: forall i. String -> A.Attr i
+  dataHalogenEChartsID = A.attr $ A.attributeName "data-halogen-echarts-id"
+  
+  dataHalogenEChartsOptions :: forall i. EC.Option -> A.Attr i
+  dataHalogenEChartsOptions = A.attr $ A.attributeName "halogen-echarts-options"
+  
+instance optionIsAttribute :: A.IsAttribute EC.Option where
+  toAttrString _ _ = ""
