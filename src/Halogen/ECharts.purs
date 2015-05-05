@@ -19,6 +19,9 @@ import Data.Foldable (for_)
 
 import qualified Data.StrMap as M
 
+import Data.Argonaut.Core (Json())
+import Data.Argonaut.Encode (encodeJson)
+
 import Data.DOM.Simple.Types
 import Data.DOM.Simple.Element
 import Data.DOM.Simple.Window
@@ -27,6 +30,8 @@ import Data.DOM.Simple.Document
 import Control.Monad (when)
 import Control.Monad.Eff
 import Control.Monad.Eff.Ref
+
+import ECharts.Utils (unnull)
 
 import qualified ECharts.Chart as EC
 import qualified ECharts.Options as EC
@@ -77,32 +82,51 @@ postRender (EChartsContext ref) node _ = do
     -- Get the key
     key <- getAttribute "data-halogen-echarts-id" el
     for_ (M.lookup key m) (updateOptions el)
+
+-- | Create a chart component, given a unique identifier, height in pixels and options
+-- | object.
+-- |
+-- | We store the component ID in the `data-halogen-echarts-id` attribute, and the 
+-- | ECharts options object in an object property.
+-- |
+-- | `virtual-dom` will set `data-` attributes using `setAttribute`, which will coerce
+-- | the object to a string, so we need to use a regular property.
+-- |
+-- | `virtual-dom` will also diff the object we set during any update operation, which
+-- | can break PureScript's ADT representation, so we need to use the already-serialized
+-- | JSON representation given by Argonaut's `encodeJson` function.
+chart :: forall i. String -> Number -> EC.Option -> H.HTML i
+chart key height opts = H.div [ A.style (A.styles (M.singleton "height" (show height <> "px")))
+                              , dataHalogenEChartsID key
+                              , dataHalogenEChartsOptions (EncodedOptions (unnull (encodeJson opts)))
+                              ] []
+  where
+  dataHalogenEChartsID :: forall i. String -> A.Attr i
+  dataHalogenEChartsID = A.attr $ A.attributeName "data-halogen-echarts-id"
+
+  dataHalogenEChartsOptions :: forall i. EncodedOptions -> A.Attr i
+  dataHalogenEChartsOptions = A.attr $ A.attributeName "halogen-echarts-options"
+  
+newtype EncodedOptions = EncodedOptions Json
+  
+instance optionIsAttribute :: A.IsAttribute EncodedOptions where
+  toAttrString _ _ = "EncodedOptions"
       
 foreign import getOptions
   "function getOptions(node) {\
   \  return function() {\
   \    return node['halogen-echarts-options'];\
   \  };\
-  \}" :: forall eff. HTMLElement -> Eff (dom :: DOM | eff) EC.Option
+  \}" :: forall eff. HTMLElement -> Eff (dom :: DOM | eff) EncodedOptions
+      
+foreign import setOptions
+  "function setOptions(option, chart) {\
+  \  return function() {\
+  \    chart.setOption(option);\
+  \  };\
+  \}" :: forall eff. Fn2 EncodedOptions EC.EChart (Eff (ECEffects eff) Unit)
       
 updateOptions :: forall eff. HTMLElement -> EC.EChart -> Eff (ECEffects eff) Unit
 updateOptions node ec = void do
   opts <- getOptions node
-  EC.setOption opts false ec
-
--- | Create a chart component
-chart :: forall i. String -> Number -> EC.Option -> H.HTML i
-chart key height opts = H.div [ A.style (A.styles (M.singleton "height" (show height <> "px")))
-                              , dataHalogenEChartsID key
-                              , dataHalogenEChartsOptions opts
-                              ] []
-  where
-  -- | Custom attributes
-  dataHalogenEChartsID :: forall i. String -> A.Attr i
-  dataHalogenEChartsID = A.attr $ A.attributeName "data-halogen-echarts-id"
-  
-  dataHalogenEChartsOptions :: forall i. EC.Option -> A.Attr i
-  dataHalogenEChartsOptions = A.attr $ A.attributeName "halogen-echarts-options"
-  
-instance optionIsAttribute :: A.IsAttribute EC.Option where
-  toAttrString _ _ = ""
+  runFn2 setOptions opts ec
