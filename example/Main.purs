@@ -1,8 +1,10 @@
 module Main where
 
+import Data.Int
 import Data.Void
 import Data.Tuple
 import Data.Maybe
+import Data.Either
 
 import Control.Bind
 import Control.Monad.Eff
@@ -13,7 +15,6 @@ import Data.DOM.Simple.Document
 import Data.DOM.Simple.Element
 import Data.DOM.Simple.Types
 import Data.DOM.Simple.Window
-
 
 import ECharts.Chart
 import ECharts.Options
@@ -32,7 +33,8 @@ import ECharts.Style.Item
 import Halogen
 import Halogen.Signal
 import Halogen.Component
-import Halogen.ECharts
+
+import qualified Halogen.ECharts as EC
 
 import qualified Halogen.HTML as H
 import qualified Halogen.HTML.Attributes as A
@@ -45,13 +47,30 @@ appendToBody e = do
   b <- body w 
   appendChild b e
 
-ui :: forall m i eff. (Applicative m) => Component (H.Widget (ECEffects eff) i) m i i
-ui = component (pure (H.placeholder (chart "example-chart" zero opts)))
-  where 
-  simpleData = Value <<< Simple
+-- | Toggle the smooth rendering flag
+data Input = ToggleSmooth
 
-  opts :: Option
-  opts = Option $ optionDefault
+-- | The state object:
+-- |
+-- | - the version of the chart, to enable repainting
+-- | - a flag to toggle smooth lines
+type State = { version :: Int, smooth :: Boolean }
+
+ui :: forall m eff. (Applicative m) => Component m Input Input
+ui = render <$> stateful { version: zero :: Int, smooth: false } update
+  where
+  render :: State -> H.HTML (m Input)
+  render o = H.div_ [ EC.chart "example-chart" 400 (opts o.smooth)
+                    , H.p_ [ H.button [ A.onClick (A.input_ ToggleSmooth) ] [ H.text "Toggle Smooth" ] ]
+                    ]
+  
+  -- | Update the state (note, we bump the version to ensure the chart gets updated)
+  update :: State -> Input -> State
+  update o _ = o { smooth = not o.smooth }
+  
+  -- | Line series data
+  opts :: Boolean -> Option
+  opts smooth = Option $ optionDefault
                   { xAxis = Just $ OneAxis $ Axis $ axisDefault 
                        { "type" = Just CategoryAxis
                        , boundaryGap = Just $ CatBoundaryGap false
@@ -69,12 +88,17 @@ ui = component (pure (H.placeholder (chart "example-chart" zero opts)))
                               }
                           , lineSeries: lineSeriesDefault
                              { stack = Just "total"
-                             , "data" = Just $ simpleData <$> [120, 132, 101, 134, 90, 230, 210]
+                             , "data" = Just $ Value <<< Simple <$> [120, 132, 101, 134, 90, 230, 210]
+                             , smooth = Just smooth
                              }
                           }
                       ]
                   }
 
 main = do
-  Tuple node _ <- runUI ui
+  ctx <- EC.newContext    
+    
+  Tuple node _ <- runUIWith ui (EC.postRender ctx)
   appendToBody node
+  
+  EC.init ctx node
