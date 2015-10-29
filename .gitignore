@@ -1,4 +1,11 @@
 node_modules/
 bower_components/
 output/
-
+/tmp/
+/dist/
+/output/
+/coverage/
+public/*.js
+!public/echarts-all.js
+.psci_modules
+.psci

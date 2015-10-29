@@ -1,132 +1,292 @@
--- | This module defines an adapter between Halogen's widget API and
--- | the `purescript-echarts` library.
+module Halogen.ECharts
+       ( echarts
+       , EChartsState()
+       , EChartsQuery(..)
+       , initialEChartsState
+       , EChartsEffects()
+       ) where
 
-module Halogen.ECharts 
-  ( EChartsContext()
-  , ECEffects()
-  , chart
-  , newContext
-  , init
-  , postRender
-  ) where
+import Prelude
 
-import DOM
-
-import Data.Int
-import Data.Maybe
-import Data.Function
-import Data.Foldable (for_)
-
-import qualified Data.StrMap as M
-
-import Data.Argonaut.Core (Json())
-import Data.Argonaut.Encode (encodeJson)
-
-import Data.DOM.Simple.Types
-import Data.DOM.Simple.Element
-import Data.DOM.Simple.Window
-import Data.DOM.Simple.Document
-
+import Control.Bind ((=<<))
 import Control.Monad (when)
-import Control.Monad.Eff
-import Control.Monad.Eff.Ref
+import Control.Monad.Aff (Aff(), later, later')
+import Control.Monad.Eff (Eff())
+import Control.Monad.Eff.Random (random, RANDOM())
+import Control.Monad.Eff.Ref (Ref(), REF(), readRef, modifyRef, writeRef, newRef)
+import Control.Monad.Maybe.Trans
+import Control.Monad.Trans
+import Control.Plus (empty)
+import Css.Geometry (width, height)
+import Css.Size (px)
+import Css.Stylesheet (Css())
+import DOM (DOM())
+import DOM.HTML (window)
+import DOM.HTML.Types ( HTMLElement()
+                      , htmlDocumentToParentNode
+                      , htmlElementToParentNode
+                      , htmlElementToElement)
+import DOM.HTML.Window (document)
+import DOM.Node.Element (getAttribute, setAttribute)
+import DOM.Node.Node (removeChild, appendChild)
+import DOM.Node.NodeList (length, item)
+import DOM.Node.ParentNode (querySelectorAll, querySelector)
+import DOM.Node.Types (elementToNode, NodeList(), Node(), ParentNode(), Element())
+import Data.Array (singleton)
+import Data.Date (Now(), nowEpochMilliseconds)
+import Data.Int (toNumber)
+import Data.Maybe (Maybe(..), maybe, isNothing)
+import Data.Nullable (toMaybe)
+import Data.StrMap (StrMap(), insert, lookup)
+import Data.StrMap as Sm
+import Data.Time (Milliseconds(..))
+import ECharts.Chart as Ec
+import ECharts.Effects ( ECHARTS_INIT()
+                       , ECHARTS_OPTION_SET()
+                       , ECHARTS_DISPOSE()
+                       , ECHARTS_RESIZE()
+                       , ECHARTS_REFRESH()
+                       , ECHARTS_CLEAR()
+                       )
+import ECharts.Options as Ec
+import Halogen hiding (Prop())
+import Halogen.HTML as H
+import Halogen.HTML.CSS (style)
+import Halogen.HTML.Core (Prop(..), attrName)
+import Halogen.HTML.Properties as P
+import Unsafe.Coerce (unsafeCoerce)
 
-import ECharts.Utils (unnull)
+-- | Attribute that contain unique key for component instance
+dataEChartsKey :: forall i. String -> Prop i
+dataEChartsKey = Attr Nothing (attrName "data-echarts-key")
 
-import qualified ECharts.Chart as EC
-import qualified ECharts.Options as EC
-import qualified ECharts.Effects as EC
+-- | Foreig global state, it caches elements involved in chart render
+foreign import memo :: Ref (StrMap {inst :: String, el :: Element})
+-- | get `dataset` property of element
+foreign import dataset :: forall e . Node -> Eff (dom :: DOM|e) (StrMap String)
 
-import qualified Halogen.HTML as H
-import qualified Halogen.HTML.Attributes as A
+-- | Memoize elements involved in chart render. In module level effectful state
+memoChartElement
+  :: forall e. String -> HTMLElement -> Eff (ref :: REF, dom :: DOM |e) Unit
+memoChartElement k v =
+  -- If `MaybeT` computation succeeded then take memo and put it to state
+  maybe (pure unit) (modifyRef memo <<< insert k) =<< runMaybeT do
+    -- try to take element with chart
+    chartEl <- MaybeT $ map toMaybe
+               $ querySelector "div" $ htmlElementToParentNode v
+    -- try to take attribute used echarts like unique key
+    chartInstance <- MaybeT $ map toMaybe
+                     $ getAttribute "_echarts_instance_" $ htmlElementToElement v
+    pure {inst: chartInstance, el: chartEl}
 
-type ECEffects eff = ( echartInit :: EC.EChartInit
-                     , echartSetOption :: EC.EChartOptionSet
-                     , echartDispose :: EC.EChartDispose
-                     , dom :: DOM 
-                     , ref :: Ref
-                     | eff)
 
--- | The ECharts context, which should be passed to the initialization 
--- | and post-render hooks.
-newtype EChartsContext = EChartsContext (RefVal (M.StrMap EC.EChart))
-
--- | Create a new ECharts context.
-newContext :: forall eff. Eff (ref :: Ref | eff) EChartsContext
-newContext = EChartsContext <$> newRef M.empty
-
--- | The initialization hook, which creates ECharts components.
-init :: forall eff. EChartsContext -> HTMLElement -> Eff (ECEffects eff) Unit
-init (EChartsContext ref) node = do
-  els <- querySelector "[data-halogen-echarts-id]" node
-  for_ els \el -> do
-    -- Get the key
-    key <- getAttribute "data-halogen-echarts-id" el
-    -- Setup the ECharts component
-    m <- readRef ref
-    ec <- case M.lookup key m of
-      Nothing -> do
-        -- Create a new ECharts object and store it in the map
-        ec <- EC.init Nothing el
-        modifyRef ref (M.insert key ec)
-        return ec
-      Just ec -> return ec
-    updateOptions el ec
-  
--- | The post-render hook, which updates any ECharts components.
-postRender :: forall eff driver. EChartsContext -> HTMLElement -> driver -> Eff (ECEffects eff) Unit
-postRender (EChartsContext ref) node _ = do
-  els <- querySelector "[data-halogen-echarts-id]" node
-  m <- readRef ref
-  for_ els \el -> do
-    -- Get the key
-    key <- getAttribute "data-halogen-echarts-id" el
-    for_ (M.lookup key m) (updateOptions el)
-
--- | Create a chart component, given a unique identifier, height in pixels and options
--- | object.
--- |
--- | We store the component ID in the `data-halogen-echarts-id` attribute, and the 
--- | ECharts options object in an object property.
--- |
--- | `virtual-dom` will set `data-` attributes using `setAttribute`, which will coerce
--- | the object to a string, so we need to use a regular property.
--- |
--- | `virtual-dom` will also diff the object we set during any update operation, which
--- | can break PureScript's ADT representation, so we need to use the already-serialized
--- | JSON representation given by Argonaut's `encodeJson` function.
-chart :: forall i. String -> Number -> EC.Option -> H.HTML i
-chart key height opts = H.div [ A.style (A.styles (M.singleton "height" (show height <> "px")))
-                              , dataHalogenEChartsID key
-                              , dataHalogenEChartsOptions (EncodedOptions (unnull (encodeJson opts)))
-                              ] []
+-- | Take memoized elements, remove them from parents and append to their
+-- | true parents.
+rearrange :: forall e. Eff (dom :: DOM, ref :: REF|e) Unit
+rearrange = do
+  -- We will flip `memo` content with `next` after `rearrange'`
+  next <- newRef Sm.empty
+  -- Until last component
+  rearrange' next 0
   where
-  dataHalogenEChartsID :: forall i. String -> A.Attr i
-  dataHalogenEChartsID = A.attr $ A.attributeName "data-halogen-echarts-id"
+  rearrange'
+    :: Ref (StrMap {inst :: String, el :: Element})
+    -> Int -> Eff (dom :: DOM, ref :: REF|e) Unit
+  rearrange' next n = do
+    -- Get all components
+    echartsContainers <- window
+                         >>= document
+                         >>= querySelectorAll "[data-echarts-key]"
+                         <<< htmlDocumentToParentNode
+    -- Count them
+    count <- length echartsContainers
+    if n >= count
+      -- we've processed all components, let's remove unneeded keys from memo
+      -- by flipping refs content
+      then readRef next >>= writeRef memo
+      else do
+      -- move one component
+      moveOne next n echartsContainers
+      -- continue
+      rearrange' next $ n + one
 
-  dataHalogenEChartsOptions :: forall i. EncodedOptions -> A.Attr i
-  dataHalogenEChartsOptions = A.attr $ A.attributeName "halogen-echarts-options"
-  
-newtype EncodedOptions = EncodedOptions Json
-  
-instance optionIsAttribute :: A.IsAttribute EncodedOptions where
-  toAttrString _ _ = "EncodedOptions"
-      
-foreign import getOptions
-  "function getOptions(node) {\
-  \  return function() {\
-  \    return node['halogen-echarts-options'];\
-  \  };\
-  \}" :: forall eff. HTMLElement -> Eff (dom :: DOM | eff) EncodedOptions
-      
-foreign import setOptions
-  "function setOptions(option, chart) {\
-  \  return function() {\
-  \    chart.setOption(option);\
-  \  };\
-  \}" :: forall eff. Fn2 EncodedOptions EC.EChart (Eff (ECEffects eff) Unit)
-      
-updateOptions :: forall eff. HTMLElement -> EC.EChart -> Eff (ECEffects eff) Unit
-updateOptions node ec = void do
-  opts <- getOptions node
-  runFn2 setOptions opts ec
+  moveOne :: Ref (StrMap {inst :: String, el :: Element})
+          -> Int -> NodeList -> Eff (dom :: DOM, ref :: REF|e) Unit
+  moveOne next ix containers = void $ runMaybeT do
+      -- try to take component element
+      container <- MaybeT $ map toMaybe $ item ix containers
+      -- try to find chart element
+      lift do mbel <- map (toMaybe >>> map elementToNode)
+                        $ querySelector "div"
+                        $ nodeToParentNode container
+              -- and remove if it exists
+              maybe (pure unit) (void <<< flip removeChild container) mbel
+      datas <- lift $ dataset container
+      -- get key to take memoized el and _echarts_instance_
+      key <- maybe empty pure $ lookup "echartsKey" datas
+      m <- lift $ readRef memo
+      r <- maybe empty pure $ lookup key m
+      -- append element, set attribute
+      lift do
+        appendChild (elementToNode r.el) container
+        setAttribute "_echarts_instance_" r.inst $ nodeToElement container
+        -- Everything works, this el/chart is exists, let's write it to new ref
+        modifyRef next $ insert key r
+
+  -- `Node` and `ParentNode` runtime representations are same. And if
+  -- `Node` has no children, then `querySelector "div"` will return null.
+  -- we catch it in `MaybeT`
+  nodeToParentNode :: Node -> ParentNode
+  nodeToParentNode = unsafeCoerce
+
+  -- Used only in `container` and `container` is definitely an `Element`
+  -- because we've taken its children before.
+  nodeToElement :: Node -> Element
+  nodeToElement = unsafeCoerce
+
+genKey :: forall e. Eff (now :: Now, random :: RANDOM|e) String
+genKey = do
+  rn1 <- random
+  rn2 <- random
+  (Milliseconds time) <- nowEpochMilliseconds
+  pure
+    $  show rn1
+    <> show time
+    <> show rn2
+
+type EChartsState =
+  { option :: Maybe Ec.Option
+  , chart :: Maybe Ec.EChart
+  , width :: Int
+  , height :: Int
+  , key :: Maybe String
+  }
+
+
+initialEChartsState :: Int -> Int -> EChartsState
+initialEChartsState w h =
+  { option: Nothing
+  , chart: Nothing
+  , width: w
+  , height: h
+  , key: Nothing
+  }
+
+data EChartsQuery a
+  = Set Ec.Option a
+  | Resize a
+  | Refresh a
+  | Clear a
+  | Dispose a
+  | Init HTMLElement a
+  | Quit HTMLElement a
+  | SetHeight Int a
+  | SetWidth Int a
+  | GetOptions (Maybe Ec.Option -> a)
+  | GetWidth (Int -> a)
+  | GetHeight (Int -> a)
+
+type EChartsEffects e = ( echartInit :: ECHARTS_INIT
+                        , echartSetOption :: ECHARTS_OPTION_SET
+                        , echartDispose :: ECHARTS_DISPOSE
+                        , echartResize :: ECHARTS_RESIZE
+                        , echartRefresh :: ECHARTS_REFRESH
+                        , echartClear :: ECHARTS_CLEAR
+                        , dom :: DOM
+                        , random :: RANDOM
+                        , now :: Now
+                        , ref :: REF
+                        | e)
+
+echarts :: forall e. Component EChartsState EChartsQuery (Aff (EChartsEffects e))
+echarts = component render eval
+
+render :: EChartsState -> ComponentHTML EChartsQuery
+render state =
+  H.div ([ P.initializer \el -> action (Init el)
+         , P.finalizer \el -> action (Quit el)
+         , style do
+              height $ px $ toNumber state.height
+              width $ px $ toNumber state.width
+         ]
+         <>
+         maybe [ ] (singleton <<< dataEChartsKey) state.key
+        )
+  [ ]
+
+
+eval :: forall e.
+        Eval EChartsQuery EChartsState EChartsQuery (Aff (EChartsEffects e))
+eval (Set opts next) = do
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> do
+      chart' <- liftEff' $ Ec.setOption opts true chart
+      modify _{ chart = pure chart'
+              , option = pure opts
+              }
+  pure next
+eval (Resize next) = do
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> liftEff' $ Ec.resize chart
+  pure next
+eval (Refresh next) = do
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> liftEff' $ Ec.refresh chart
+  pure next
+eval (Clear next) = do
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> liftEff' $ Ec.clear chart
+  pure next
+eval (Dispose next) = do
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> liftEff' $ Ec.dispose chart
+  pure next
+eval (Init el next) = do
+  state <- get
+  when (isNothing state.key) do
+    key <- liftEff' genKey
+    modify _{key = pure key}
+  when (isNothing state.chart) do
+    chart <- liftEff' $ Ec.init Nothing el
+    modify _{chart = pure chart}
+    liftH $ pure unit
+    mbk <- gets _.key
+    case mbk of
+      Nothing -> pure unit
+      Just key ->
+        liftEff' $ memoChartElement key el
+  pure next
+eval (Quit el next) = do
+  liftEff' rearrange
+  pure next
+eval (SetHeight h next) = do
+  modify _{height = h}
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> liftEff' $ Ec.resize chart
+  pure next
+eval (SetWidth w next) = do
+  modify _{width = w}
+  state <- get
+  case state.chart of
+    Nothing -> pure unit
+    Just chart -> liftEff' $ Ec.resize chart
+  pure next
+eval (GetOptions continue) = do
+  opts <- gets _.option
+  pure $ continue opts
+eval (GetWidth continue) = do
+  map continue $ gets _.width
+eval (GetHeight continue) = do
+  map continue $ gets _.height
