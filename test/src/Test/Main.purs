@@ -5,11 +5,10 @@ import Prelude
 import Control.Monad.Aff (Aff(), runAff)
 import Control.Monad.Aff.AVar (AVAR())
 import Control.Monad.Eff (Eff())
-import Control.Monad.Eff.Console (log, CONSOLE())
+import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff.Random (randomInt, RANDOM())
 import Control.Monad.Eff.Exception (EXCEPTION(), throwException)
 import Data.Array ((!!), length, snoc, sort, reverse, head, filter)
-import Data.Generic (Generic, gEq, gCompare)
 import Data.Functor.Coproduct (Coproduct())
 import Data.Maybe (Maybe(..), maybe)
 import Halogen

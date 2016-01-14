@@ -10,16 +10,14 @@ import Prelude
 
 import Control.Bind ((=<<))
 import Control.Monad (when)
-import Control.Monad.Aff (Aff(), later, later')
+import Control.Monad.Aff (Aff())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Random (random, RANDOM())
 import Control.Monad.Eff.Ref (Ref(), REF(), readRef, modifyRef, writeRef, newRef)
 import Control.Monad.Maybe.Trans
-import Control.Monad.Trans
 import Control.Plus (empty)
 import Css.Geometry (width, height)
 import Css.Size (px)
-import Css.Stylesheet (Css())
 import DOM (DOM())
 import DOM.HTML (window)
 import DOM.HTML.Types ( HTMLElement()
