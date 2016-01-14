@@ -13,8 +13,8 @@
   "homepage": "https://github.com/slamdata/purescript-halogen-echarts",
   "dependencies": {
     "gulp": "^3.9.0",
-    "gulp-purescript": "^0.7.0",
-    "purescript": "^0.7.5-rc.2",
+    "gulp-purescript": "^0.8.0",
+    "purescript": "^0.7.6",
     "webpack-stream": "^2.1.1"
   },
   "devDependencies": {

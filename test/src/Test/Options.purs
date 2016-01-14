@@ -2,22 +2,19 @@ module Test.Options (options) where
 
 import Prelude
 
-import Control.Monad.Eff (Eff())
 import Data.Maybe (Maybe(..))
 import ECharts.Axis
-import ECharts.Chart
 import ECharts.Common
 import ECharts.Coords
-import ECharts.Formatter
 import ECharts.Item.Data
 import ECharts.Item.Value
 import ECharts.Legend
 import ECharts.Options
 import ECharts.Series
-import ECharts.Style.Item
 import ECharts.Toolbox
 import ECharts.Tooltip
 
+simpleData :: Number -> ItemData
 simpleData = Value <<< Simple
 
 lineOptions :: Option
@@ -116,6 +113,7 @@ lineOptions = Option $ optionDefault {
   }
 
 
+chordOptions :: Option
 chordOptions = Option $ optionDefault {
   series = Just $ Just <$> [
      ChordSeries {
@@ -145,13 +143,15 @@ chordOptions = Option $ optionDefault {
   }
 
 
-
+indicator :: String -> Number -> Indicator
 indicator text max =
   Indicator $ indicatorDefault{text = Just text, max = Just max}
 
+datPair :: Array Number -> String -> ItemData
 datPair val name =
   Dat $ (dataDefault $ Many val) {name = Just name}
 
+radarOptions :: Option
 radarOptions = Option $ optionDefault {
   polar = Just $ [Polar polarDefault {
      indicator = Just [
@@ -178,10 +178,12 @@ radarOptions = Option $ optionDefault {
 
 
 
+hloc :: Number -> Number -> Number -> Number -> ItemData
 hloc o c l h = Value $ HLOC {
   h: h, l: l, o: o, c: c
   }
 
+kOptions :: Option
 kOptions = Option $ optionDefault {
   xAxis = Just $ OneAxis $ Axis axisDefault {
      "type" = Just CategoryAxis,
@@ -211,9 +213,11 @@ kOptions = Option $ optionDefault {
 
 
 
+simpleDat :: Number -> String -> ItemData
 simpleDat val nam =
   Dat $ (dataDefault $ Simple val) {name = Just nam}
 
+funnelOptions :: Option
 funnelOptions = Option $ optionDefault {
   series = Just $ Just <$> [
      FunnelSeries {
