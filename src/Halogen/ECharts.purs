@@ -8,16 +8,20 @@ module Halogen.ECharts
 
 import Prelude
 
+import CSS.Geometry (width, height)
+import CSS.Size (px)
 import Control.Bind ((=<<))
+import Control.Coroutine (($$), consumer, runProcess)
+import Control.Coroutine.Aff (produce)
 import Control.Monad (when)
-import Control.Monad.Aff (Aff())
+import Control.Monad.Aff (Aff(), runAff, later', forkAff)
+import Control.Monad.Aff.AVar (AVAR())
 import Control.Monad.Eff (Eff())
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Random (random, RANDOM())
 import Control.Monad.Eff.Ref (Ref(), REF(), readRef, modifyRef, writeRef, newRef)
 import Control.Monad.Maybe.Trans
 import Control.Plus (empty)
-import CSS.Geometry (width, height)
-import CSS.Size (px)
 import DOM (DOM())
 import DOM.HTML (window)
 import DOM.HTML.Types ( HTMLElement()
@@ -32,6 +36,8 @@ import DOM.Node.ParentNode (querySelectorAll, querySelector)
 import DOM.Node.Types (elementToNode, NodeList(), Node(), ParentNode(), Element())
 import Data.Array (singleton)
 import Data.Date (Now(), nowEpochMilliseconds)
+import Data.Either (Either(..))
+import Data.Functor (($>))
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(..), maybe, isNothing)
 import Data.Nullable (toMaybe)
@@ -62,6 +68,32 @@ dataEChartsKey = Attr Nothing (attrName "data-echarts-key")
 foreign import memo :: Ref (StrMap {inst :: String, el :: Element})
 -- | get `dataset` property of element
 foreign import dataset :: forall e . Node -> Eff (dom :: DOM|e) (StrMap String)
+-- | flag for global initialization
+foreign import initialized :: Ref Boolean
+
+globalInitialization :: forall e. Eff (dom :: DOM, ref :: REF, avar :: AVAR|e) Unit
+globalInitialization = do
+  inited <- readRef initialized
+  when (not inited) do
+    -- This should be removed and altered with finalizer prop
+    -- after slamdata/purescript-halogen#272 is resolved
+    emulateFinalizer
+    writeRef initialized true
+
+emulateFinalizer :: forall e. Eff (dom :: DOM, ref :: REF, avar :: AVAR|e) Unit
+emulateFinalizer = do
+  runAff (const $ pure unit) pure $ runProcess (tickProducer $$ tickConsumer)
+  where
+  tickProducer =
+    produce (runAff (const $ pure unit) pure <<< void <<< forkAff <<< tick)
+
+  tick emit = do
+    liftEff $ emit $ Left unit
+    forkAff $ later' 1000 $ tick emit
+
+  tickConsumer = consumer $ const $ liftEff rearrange $> Nothing
+
+
 
 -- | Memoize elements involved in chart render. In module level effectful state
 memoChartElement
@@ -177,7 +209,6 @@ data EChartsQuery a
   | Clear a
   | Dispose a
   | Init HTMLElement a
-  | Quit HTMLElement a
   | SetHeight Int a
   | SetWidth Int a
   | GetOptions (Maybe Ec.Option -> a)
@@ -194,6 +225,7 @@ type EChartsEffects e = ( echartInit :: ECHARTS_INIT
                         , random :: RANDOM
                         , now :: Now
                         , ref :: REF
+                        , avar :: AVAR
                         | e)
 
 echarts :: forall e. Component EChartsState EChartsQuery (Aff (EChartsEffects e))
@@ -202,7 +234,6 @@ echarts = component render eval
 render :: EChartsState -> ComponentHTML EChartsQuery
 render state =
   H.div ([ P.initializer \el -> action (Init el)
-         , P.finalizer \el -> action (Quit el)
          , style do
               height $ px $ toNumber state.height
               width $ px $ toNumber state.width
@@ -251,6 +282,7 @@ eval (Dispose next) = do
   pure next
 eval (Init el next) = do
   state <- get
+  liftEff' globalInitialization
   when (isNothing state.key) do
     key <- liftEff' genKey
     modify _{key = pure key}
@@ -263,9 +295,6 @@ eval (Init el next) = do
       Nothing -> pure unit
       Just key ->
         liftEff' $ memoChartElement key el
-  pure next
-eval (Quit el next) = do
-  liftEff' rearrange
   pure next
 eval (SetHeight h next) = do
   modify _{height = h}

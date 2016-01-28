@@ -17,11 +17,11 @@
     "purescript-random": "^0.2.2",
     "purescript-refs": "^0.2.0",
     "purescript-maps": "^0.5.2",
-    "purescript-transformers": "^0.8.1"
+    "purescript-transformers": "^0.8.1",
+    "purescript-argonaut-codecs": "^0.6.1"
   },
   "devDependencies": {
     "purescript-generics": "^0.7.0",
-    "purescript-random": "^0.2.2",
     "purescript-debug": "^0.1.2"
   }
 }
