@@ -3,7 +3,6 @@ module Test.Main where
 import Prelude
 
 import Control.Monad.Aff (Aff(), runAff)
-import Control.Monad.Aff.AVar (AVAR())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff.Random (randomInt, RANDOM())
@@ -43,7 +42,6 @@ type StateP =
 type QueryP = Coproduct Query (ChildF Slot EChartsQuery)
 
 type AppEffects = EChartsEffects ( err :: EXCEPTION
-                                 , avar :: AVAR
                                  , console :: CONSOLE
                                  )
 
