@@ -1,11 +1,7 @@
-node_modules/
-bower_components/
-output/
-/tmp/
-/dist/
+/.*
+!/.gitignore
+!/.travis.yml
+/bower_components/
+/node_modules/
 /output/
-/coverage/
-public/*.js
-!public/echarts-all.js
-.psci_modules
-.psci
+/example/dist/test.js
