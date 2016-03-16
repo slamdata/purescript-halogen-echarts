@@ -1,23 +1,16 @@
 {
-  "name": "purescript-halogen-echarts",
-  "description": "Halogen integration for Echarts via the `purescript-echarts` library.",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/slamdata/purescript-halogen-echarts.git"
+  "private": true,
+  "scripts": {
+    "clean": "rimraf output && rimraf .pulp-cache",
+    "build": "pulp build",
+    "example": "pulp browserify --include example/src --to example/dist/test.js"
   },
-  "author": "Maxim Zimaliev <zimaliev@gmail.com>",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/slamdata/purescript-halogen-echarts/issues"
-  },
-  "homepage": "https://github.com/slamdata/purescript-halogen-echarts",
   "dependencies": {
-    "gulp": "^3.9.0",
-    "gulp-purescript": "^0.8.0",
-    "purescript": "^0.7.6",
-    "webpack-stream": "^2.1.1"
+    "virtual-dom": "^2.1.1"
   },
   "devDependencies": {
-    "virtual-dom": "^2.1.1"
+    "pulp": "^8.1.0",
+    "purescript": "^0.7.6",
+    "rimraf": "^2.5.2"
   }
 }

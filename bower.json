@@ -1,27 +1,27 @@
 {
   "name": "purescript-halogen-echarts",
-  "moduleType": [
-    "node"
-  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/slamdata/purescript-halogen-echarts.git"
+  },
   "ignore": [
     "**/.*",
-    "node_modules",
     "bower_components",
-    "output"
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
   ],
   "dependencies": {
-    "purescript-halogen": "^0.5.3",
     "purescript-echarts": "^0.5.0",
-    "purescript-halogen-css": "^0.2.2",
-    "purescript-datetime": "^0.9.0",
-    "purescript-random": "^0.2.2",
-    "purescript-refs": "^0.2.0",
-    "purescript-maps": "^0.5.2",
-    "purescript-transformers": "^0.8.1",
-    "purescript-argonaut-codecs": "^0.6.1"
+    "purescript-halogen": "^0.6.1",
+    "purescript-halogen-css": "^0.3.0"
   },
   "devDependencies": {
+    "purescript-debug": "^0.1.2",
     "purescript-generics": "^0.7.0",
-    "purescript-debug": "^0.1.2"
+    "purescript-random": "^0.2.3"
   }
 }
