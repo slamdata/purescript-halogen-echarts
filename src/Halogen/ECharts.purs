@@ -9,7 +9,7 @@ module Halogen.ECharts
 import Prelude
 
 import Control.Monad.Aff.AVar (AVAR())
-import Control.Monad.Aff.Free (Affable)
+import Control.Monad.Aff.Free (class Affable)
 
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(..))
