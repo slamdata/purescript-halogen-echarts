@@ -1,22 +1,22 @@
 module Halogen.ECharts
   ( echarts
-  , EChartsState()
+  , EChartsState
   , EChartsQuery(..)
   , initialEChartsState
-  , EChartsEffects()
+  , EChartsEffects
   ) where
 
 import Prelude
 
-import Control.Monad.Aff.AVar (AVAR())
+import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Free (class Affable)
 
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(..))
-import Data.NaturalTransformation (Natural())
+import Data.NaturalTransformation (Natural)
 
-import DOM (DOM())
-import DOM.HTML.Types (HTMLElement())
+import DOM (DOM)
+import DOM.HTML.Types (HTMLElement)
 
 import CSS.Geometry (width, height)
 import CSS.Size (px)
