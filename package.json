@@ -1,17 +1,15 @@
 {
   "private": true,
   "scripts": {
-    "clean": "rimraf output && rimraf .pulp-cache",
+    "clean": "rm -rf output .pulp-cache example/dist/test.js example/dist/echarts-all.js",
     "build": "pulp build --censor-lib --strict",
-    "example": "pulp browserify --include example/src --to example/dist/test.js"
+    "copy-echarts": "cp bower_components/echarts/build/dist/echarts-all.js example/dist/echarts-all.js",
+    "example": "npm run clean && npm run copy-echarts && pulp browserify --include example/src --to example/dist/test.js"
   },
   "dependencies": {
+    "pulp": "^9.0.1",
+    "purescript": "^0.9.2",
+    "purescript-psa": "^0.3.9",
     "virtual-dom": "^2.1.1"
-  },
-  "devDependencies": {
-    "pulp": "^8.1.0",
-    "purescript": "^0.8.5",
-    "purescript-psa": "^0.3.8",
-    "rimraf": "^2.5.2"
   }
 }
