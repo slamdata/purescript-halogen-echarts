@@ -14,10 +14,10 @@ import ECharts.Series as ES
 import ECharts.Toolbox as ETB
 import ECharts.Tooltip as ETT
 
-simpleData :: Number -> ItemData
+simpleData ∷ Number → ItemData
 simpleData = Value <<< Simple
 
-lineOptions :: Option
+lineOptions ∷ Option
 lineOptions = Option $ optionDefault {
   tooltip = Just $ ETT.Tooltip ETT.tooltipDefault {trigger = Just ETT.TriggerAxis},
   legend = Just $ EL.Legend EL.legendDefault {
@@ -113,7 +113,7 @@ lineOptions = Option $ optionDefault {
   }
 
 
-chordOptions :: Option
+chordOptions ∷ Option
 chordOptions = Option $ optionDefault {
   series = Just $ Just <$> [
      ES.ChordSeries {
@@ -143,15 +143,15 @@ chordOptions = Option $ optionDefault {
   }
 
 
-indicator :: String -> Number -> EA.Indicator
+indicator ∷ String → Number → EA.Indicator
 indicator text max =
   EA.Indicator $ EA.indicatorDefault{text = Just text, max = Just max}
 
-datPair :: Array Number -> String -> ItemData
+datPair ∷ Array Number → String → ItemData
 datPair val name =
   Dat $ (dataDefault $ Many val) {name = Just name}
 
-radarOptions :: Option
+radarOptions ∷ Option
 radarOptions = Option $ optionDefault {
   polar = Just $ [EA.Polar EA.polarDefault {
      indicator = Just [
@@ -178,12 +178,12 @@ radarOptions = Option $ optionDefault {
 
 
 
-hloc :: Number -> Number -> Number -> Number -> ItemData
+hloc ∷ Number → Number → Number → Number → ItemData
 hloc o c l h = Value $ HLOC {
   h: h, l: l, o: o, c: c
   }
 
-kOptions :: Option
+kOptions ∷ Option
 kOptions = Option $ optionDefault {
   xAxis = Just $ EA.OneAxis $ EA.Axis EA.axisDefault {
      "type" = Just EA.CategoryAxis,
@@ -213,11 +213,11 @@ kOptions = Option $ optionDefault {
 
 
 
-simpleDat :: Number -> String -> ItemData
+simpleDat ∷ Number → String → ItemData
 simpleDat val nam =
   Dat $ (dataDefault $ Simple val) {name = Just nam}
 
-funnelOptions :: Option
+funnelOptions ∷ Option
 funnelOptions = Option $ optionDefault {
   series = Just $ Just <$> [
      ES.FunnelSeries {
@@ -237,7 +237,7 @@ funnelOptions = Option $ optionDefault {
 
 
 
-options :: Array Option
+options ∷ Array Option
 options = [ lineOptions
           , chordOptions
           , radarOptions
