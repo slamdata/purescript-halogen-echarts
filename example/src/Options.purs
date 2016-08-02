@@ -3,118 +3,73 @@ module Options (options) where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import ECharts.Axis as EA
-import ECharts.Common (Sort(..))
-import ECharts.Coords (XPos(..), YPos(..))
-import ECharts.Item.Data (ItemData(..), dataDefault)
-import ECharts.Item.Value (ItemValue(..))
-import ECharts.Legend as EL
-import ECharts.Options (Option(..), optionDefault)
-import ECharts.Series as ES
-import ECharts.Toolbox as ETB
-import ECharts.Tooltip as ETT
+import Data.Traversable as T
 
-simpleData ∷ Number → ItemData
-simpleData = Value <<< Simple
+import ECharts.Commands as E
+import ECharts.Types as ET
+import ECharts.Types.Phantom as ETP
+import ECharts.Monad (DSL)
 
-lineOptions ∷ Option
-lineOptions = Option $ optionDefault {
-  tooltip = Just $ ETT.Tooltip ETT.tooltipDefault {trigger = Just ETT.TriggerAxis},
-  legend = Just $ EL.Legend EL.legendDefault {
-    x = Just XLeft,
-    "data" = Just $ EL.legendItemDefault <$>
-             ["email marketing", "affiliate advertising",
-              "video ads", "direct access", "search engine"]
-    },
-  toolbox = Just $ ETB.Toolbox $ ETB.toolboxDefault {
-    show = Just true,
-    x = Just XRight,
-    y = Just YBottom,
-    feature = Just $ ETB.Feature $ ETB.featureDefault {
-      mark = Just $ ETB.MarkFeature $ ETB.markFeatureDefault {show = Just true},
-      dataView = Just $ ETB.DataViewFeature $ ETB.dataViewFeatureDefault {
-        show = Just true,
-        readOnly = Just false
-        },
-      magicType = Just $ ETB.MagicTypeFeature $ ETB.magicTypeFeatureDefault {
-        show = Just true,
-        "type" = Just [ETB.MagicLine, ETB.MagicBar, ETB.MagicStack, ETB.MagicTiled]
-        },
-      restore = Just $ ETB.RestoreFeature $ ETB.restoreFeatureDefault {
-        show = Just true
-        },
-      saveAsImage = Just $ ETB.SaveAsImageFeature $ ETB.saveAsImageFeatureDefault {
-        show = Just true
-        }
-      }
-    },
-  calculable = Just true,
-  xAxis = Just $ EA.OneAxis $ EA.Axis $ EA.axisDefault {
-    "type" = Just EA.CategoryAxis,
-    boundaryGap = Just $ EA.CatBoundaryGap false,
-    "data" = Just $ EA.CommonAxisData <$>
-             ["Monday", "Tuesday", "Wednesday",
-              "Thursday", "Friday", "Saturday", "Sunday"]
-    },
-  yAxis = Just $ EA.OneAxis $ EA.Axis $ EA.axisDefault {
-    "type" = Just EA.ValueAxis
-    },
+lineOptions ∷ DSL ETP.OptionI
+lineOptions = do
+  E.tooltip E.triggerAxis
+  E.legend do
+    E.leftLeft
+    E.items
+      $ map ET.strItem
+        [ "email marketing"
+        , "affiliate advertising"
+        , "video ads"
+        , "direct access"
+        , "search engine"
+        ]
+  E.toolbox do
+    E.shown
+    E.leftRight
+    E.topBottom
+    E.feature do
+      E.dataView do
+        E.hidden
+        E.readOnly false
+      E.magicType do
+        E.magics do
+          E.magicStack
+          E.magicTiled
+          E.magicBar
+          E.magicLine
+      E.restore E.shown
+      E.saveAsImage E.shown
+  E.xAxis do
+    E.axisType ET.Category
+    E.disabledBoundaryGap
+    E.items
+      $ map ET.strItem
+        [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ]
+  E.yAxis $ E.axisType $ ET.Value
+  E.series do
+    E.line do
+      E.name "email marketing"
+      E.items $ map ET.numItem [ 120.0, 132.0, 101.0, 134.0, 90.0, 230.0, 210.0 ]
+    E.line do
+      E.name "affiliate advertising"
+      E.items $ map ET.numItem [ 220.0, 182.0, 191.0, 234.0, 290.0, 330.0, 310.0 ]
+    E.line do
+      E.name "video ads"
+      E.stack "total"
+      E.items $ map ET.numItem [ 150.0, 232.0, 201.0, 154.0, 190.0, 330.0, 410.0 ]
+    E.line do
+      E.name "direct access"
+      E.items $ map ET.numItem [ 320.0, 332.0, 301.0, 334.0, 390.0, 330.0, 320.0 ]
 
-  series = Just $ Just <$> [
-    ES.LineSeries {
-       common: ES.universalSeriesDefault {
-          name = Just "email marketing"
-          },
-       lineSeries: ES.lineSeriesDefault {
-         stack = Just "total",
-         "data" = Just $ simpleData <$> [120.0, 132.0, 101.0, 134.0, 90.0, 230.0, 210.0]
-         }
-       },
-
-    ES.LineSeries {
-      common: ES.universalSeriesDefault {
-         name = Just "affiliate advertising"
-         },
-      lineSeries: ES.lineSeriesDefault {
-        "data" = Just $ simpleData <$> [220.0, 182.0, 191.0, 234.0, 290.0, 330.0, 310.0]
-        }
-      },
-
-    ES.LineSeries {
-      common: ES.universalSeriesDefault {
-         name = Just "video ads"
-         },
-      lineSeries: ES.lineSeriesDefault {
-        stack = Just "total",
-        "data" = Just $ simpleData <$> [150.0, 232.0, 201.0, 154.0, 190.0, 330.0, 410.0]
-        }
-      },
-
-    ES.LineSeries {
-      common: ES.universalSeriesDefault {
-         name = Just "direct access"
-         },
-      lineSeries: ES.lineSeriesDefault {
-        "data" = Just $ simpleData <$> [320.0, 332.0, 301.0, 334.0, 390.0, 330.0, 320.0]
-        }
-      },
-
-    ES.LineSeries {
-      common: ES.universalSeriesDefault {
-         name = Just "search engine"
-         },
-      lineSeries: ES.lineSeriesDefault {
-        stack = Just "total",
-        "data" = Just $ simpleData <$> [820.0, 932.0, 901.0, 934.0, 1290.0, 1330.0, 1320.0]
-        }
-      }
-    ]
-
-  }
+    E.line do
+      E.name "search engine"
+      E.items $ map ET.numItem [ 820.0, 932.0, 901.0, 934.0, 1290.0, 1330.0, 1320.0 ]
 
 
-chordOptions ∷ Option
-chordOptions = Option $ optionDefault {
+chordOptions ∷ DSL ETP.OptionI
+chordOptions = do
+  pure unit
+{-  Option $ optionDefault {
   series = Just $ Just <$> [
      ES.ChordSeries {
         common: ES.universalSeriesDefault {
@@ -141,106 +96,84 @@ chordOptions = Option $ optionDefault {
         }
      ]
   }
+-}
+
+radarOptions ∷ DSL ETP.OptionI
+radarOptions = do
+  E.radar do
+    E.indicators do
+      E.indicator do
+        E.name "sales"
+        E.max 6000.0
+      E.indicator do
+        E.name "Administration"
+        E.max 16000.0
+      E.indicator do
+        E.name "IT"
+        E.max 30000.0
+      E.indicator do
+        E.name "Development"
+        E.max 52000.0
+      E.indicator do
+        E.name "Customer Support"
+        E.max 38000.0
+      E.indicator do
+        E.name "Marketing"
+        E.max 25000.0
+  E.series $ E.radarSeries do
+    E.name "budget vs spending"
+    E.buildItems do
+      E.addItem do
+        E.name "Allocated"
+        E.values [ 4300.0, 10000.0, 28000.0, 35000.0, 50000.0, 19000.0 ]
+      E.addItem do
+        E.name "Actual"
+        E.values [ 5000.0, 14000.0, 28000.0, 31000.0, 42000.0, 21000.0 ]
+
+kOptions ∷ DSL ETP.OptionI
+kOptions = do
+  E.xAxis do
+    E.axisType ET.Category
+    E.items $ map ET.strItem ["2013/1/24", "2013/1/25", "2013/1/28", "2013/1/29", "2013/1/30" ]
+  E.yAxis do
+    E.axisType ET.Value
+    E.min 2200.0
+    E.scale true
+  E.series $ E.candlestick do
+    E.buildItems
+      $ T.traverse (E.addItem <<< E.values)
+      [ [ 2320.26, 2302.6, 2287.3, 2362.94 ]
+      , [ 2300.00, 2291.3, 2288.26, 2308.38 ]
+      , [ 2295.35, 2346.5, 2295.35, 2346.92 ]
+      , [ 2347.22, 2358.98, 2337.35, 2363.8 ]
+      , [ 2360.75, 2382.48, 2347.89, 2383.76 ]
+      ]
 
 
-indicator ∷ String → Number → EA.Indicator
-indicator text max =
-  EA.Indicator $ EA.indicatorDefault{text = Just text, max = Just max}
-
-datPair ∷ Array Number → String → ItemData
-datPair val name =
-  Dat $ (dataDefault $ Many val) {name = Just name}
-
-radarOptions ∷ Option
-radarOptions = Option $ optionDefault {
-  polar = Just $ [EA.Polar EA.polarDefault {
-     indicator = Just [
-        indicator "sales" 6000.0,
-        indicator "Administration" 16000.0,
-        indicator "IT" 30000.0,
-        indicator "Development" 52000.0,
-        indicator "Customer Support" 38000.0,
-        indicator "Marketing" 25000.0
-        ]
-     }],
-  series = Just $ Just <$> [
-    ES.RadarSeries {
-       common: ES.universalSeriesDefault{name = Just "budget vs spending"},
-       radarSeries: ES.radarSeriesDefault{
-         "data" = Just [
-            datPair [4300.0, 10000.0, 28000.0, 35000.0, 50000.0, 19000.0] "Allocated",
-            datPair [5000.0, 14000.0, 28000.0, 31000.0, 42000.0, 21000.0] "Actual"
-            ]
-         }
-       }
-    ]
-  }
+funnelOptions ∷ DSL ETP.OptionI
+funnelOptions = do
+  E.series $ E.funnel do
+    E.ascending
+    E.buildItems do
+      E.addItem do
+        E.name "foo"
+        E.value 60.0
+      E.addItem do
+        E.name "bar"
+        E.value 80.0
+      E.addItem do
+        E.name "baz"
+        E.value 12.0
+      E.addItem do
+        E.name "quux"
+        E.value 123.0
 
 
-
-hloc ∷ Number → Number → Number → Number → ItemData
-hloc o c l h = Value $ HLOC {
-  h: h, l: l, o: o, c: c
-  }
-
-kOptions ∷ Option
-kOptions = Option $ optionDefault {
-  xAxis = Just $ EA.OneAxis $ EA.Axis EA.axisDefault {
-     "type" = Just EA.CategoryAxis,
-     "data" = Just $ EA.CommonAxisData <$>
-              ["2013/1/24", "2013/1/25", "2013/1/28", "2013/1/29", "2013/1/30"]
-     },
-  yAxis = Just $ EA.OneAxis $ EA.Axis EA.axisDefault {
-    "type" = Just EA.ValueAxis,
-    min = Just 2200.0,
-    scale = Just true
-    },
-  series = Just $ Just <$> [
-    ES.CandlestickSeries {
-       common: ES.universalSeriesDefault,
-       candlestickSeries: ES.candlestickSeriesDefault{
-         "data" = Just $ [
-            hloc 2320.26 2302.6 2287.3 2362.94,
-            hloc 2300.0 2291.3 2288.26 2308.38,
-            hloc 2295.35 2346.5 2295.35 2346.92,
-            hloc 2347.22 2358.98 2337.35 2363.8,
-            hloc 2360.75 2382.48 2347.89 2383.76
-            ]
-         }
-       }
-    ]
-  }
-
-
-
-simpleDat ∷ Number → String → ItemData
-simpleDat val nam =
-  Dat $ (dataDefault $ Simple val) {name = Just nam}
-
-funnelOptions ∷ Option
-funnelOptions = Option $ optionDefault {
-  series = Just $ Just <$> [
-     ES.FunnelSeries {
-        common: ES.universalSeriesDefault,
-        funnelSeries: ES.funnelSeriesDefault {
-          "data" = Just $  [
-             simpleDat 60.0 "foo",
-             simpleDat 80.0 "bar",
-             simpleDat 12.0 "baz",
-             simpleDat 123.0 "quux"
-             ],
-          sort = Just Asc
-          }
-        }
-     ]
-  }
-
-
-
-options ∷ Array Option
-options = [ lineOptions
-          , chordOptions
-          , radarOptions
-          , kOptions
-          , funnelOptions
-          ]
+options ∷ Array (DSL ETP.OptionI)
+options =
+  [ lineOptions
+  , chordOptions
+  , radarOptions
+  , kOptions
+  , funnelOptions
+  ]

@@ -44,8 +44,7 @@ type StateP = H.ParentState State EC.EChartsState Query EC.EChartsQuery AffChart
 type QueryP = Coproduct Query (H.ChildF Slot EC.EChartsQuery)
 
 type AppEffects = EC.EChartsEffects
-  ( err ∷ EXCEPTION
-  , random ∷ RANDOM
+  ( random ∷ RANDOM
   )
 
 type AffCharts = Aff AppEffects
