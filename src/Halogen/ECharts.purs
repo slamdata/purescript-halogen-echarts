@@ -55,6 +55,7 @@ data EChartsQuery a
   | Init a
   | Dispose a
   | Set (EM.DSL ETP.OptionI) a
+  | Reset (EM.DSL ETP.OptionI) a
   | Resize a
   | Clear a
   | SetHeight Int a
@@ -118,6 +119,12 @@ eval (Set opts next) = do
   for_ state.chart \chart → do
     H.fromEff (EC.setOption opts chart ∷ Eff (EChartsEffects eff) Unit)
     H.modify (_{ chart = pure chart, option = pure opts })
+  pure next
+eval (Reset opts next) = do
+  state ← H.get
+  for_ state.chart \chart → do
+    H.fromEff (EC.resetOption opts chart ∷ Eff (EChartsEffects eff) Unit)
+    H.modify (_{ chart = pure chart, option = pure opts})
   pure next
 eval (Resize next) = do
   state ← H.get

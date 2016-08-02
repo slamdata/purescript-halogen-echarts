@@ -2,8 +2,7 @@ module Options (options) where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
-import Data.Traversable as T
+import Data.Foldable as F
 
 import ECharts.Commands as E
 import ECharts.Types as ET
@@ -66,37 +65,75 @@ lineOptions = do
       E.items $ map ET.numItem [ 820.0, 932.0, 901.0, 934.0, 1290.0, 1330.0, 1320.0 ]
 
 
-chordOptions ∷ DSL ETP.OptionI
-chordOptions = do
-  pure unit
-{-  Option $ optionDefault {
-  series = Just $ Just <$> [
-     ES.ChordSeries {
-        common: ES.universalSeriesDefault {
-           name = Just "chord"
-           },
-        chordSeries: ES.chordSeriesDefault {
-          sort = Just Asc,
-          sortSub = Just Desc,
-          showScale = Just true,
-          showScaleText = Just true,
-          "data" = Just [
-            Label "group1",
-            Label "group2",
-            Label "group3",
-            Label "group4"
-            ],
-          matrix = Just $  [
-            [11975.0,  5871.0, 8916.0, 2868.0],
-            [ 1951.0, 10048.0, 2060.0, 6171.0],
-            [ 8010.0, 16145.0, 8090.0, 8045.0],
-            [ 1013.0,   990.0,  940.0, 6907.0]
-            ]
-          }
-        }
-     ]
-  }
--}
+graphOptions ∷ DSL ETP.OptionI
+graphOptions = do
+  E.title $ E.text "Graph"
+  E.tooltip $ pure unit
+  E.animationDurationUpdate 1500
+  E.animationEasingUpdateQuinticInOut
+  E.series do
+    E.graph do
+      E.layoutNone
+      E.symbolSize 50
+      E.roam true
+      E.label $ E.normalLabel E.shown
+
+      E.edgeSymbols do
+        E.circleEdgeSymbol
+        E.arrowEdgeSymbol
+      E.edgeSymbolSizes 4 10
+
+      E.edgeLabel $ E.normalEdgeLabel $ E.textStyle $ E.fontSize 20
+
+      E.lineStylePair$ E.normalLineStyle do
+        E.opacity 0.9
+        E.width 2
+        E.curveness 0.0
+
+      E.buildItems do
+        E.addItem do
+          E.name "one"
+          E.x 300.0
+          E.y 300.0
+        E.addItem do
+          E.name "two"
+          E.x 600.0
+          E.y 300.0
+        E.addItem do
+          E.name "three"
+          E.x 450.0
+          E.y 100.0
+        E.addItem do
+          E.name "four"
+          E.x 450.0
+          E.y 500.0
+      E.buildLinks do
+        E.addLink do
+          E.sourceIx 0
+          E.targetIx 1
+          E.symbolSizes 5 20
+          E.label $ E.normalLabel E.shown
+          E.lineStylePair $ E.normalLineStyle do
+            E.width 5
+            E.curveness 0.2
+        E.addLink do
+          E.sourceName "two"
+          E.targetName "three"
+          E.label $ E.normalLabel E.shown
+          E.lineStylePair$ E.normalLineStyle $ E.curveness 0.2
+        E.addLink do
+          E.sourceName "one"
+          E.targetName "three"
+        E.addLink do
+          E.sourceName "two"
+          E.targetName "three"
+        E.addLink do
+          E.sourceName "two"
+          E.targetName "four"
+        E.addLink do
+          E.sourceName "one"
+          E.targetName "four"
+
 
 radarOptions ∷ DSL ETP.OptionI
 radarOptions = do
@@ -141,7 +178,7 @@ kOptions = do
     E.scale true
   E.series $ E.candlestick do
     E.buildItems
-      $ T.traverse (E.addItem <<< E.values)
+      $ F.traverse_ (E.addItem <<< E.values)
       [ [ 2320.26, 2302.6, 2287.3, 2362.94 ]
       , [ 2300.00, 2291.3, 2288.26, 2308.38 ]
       , [ 2295.35, 2346.5, 2295.35, 2346.92 ]
@@ -172,7 +209,7 @@ funnelOptions = do
 options ∷ Array (DSL ETP.OptionI)
 options =
   [ lineOptions
-  , chordOptions
+  , graphOptions
   , radarOptions
   , kOptions
   , funnelOptions
