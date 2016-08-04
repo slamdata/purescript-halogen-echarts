@@ -14,8 +14,10 @@ import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Free (class Affable)
 
 import Data.Foldable (for_)
+import Data.Foreign (Foreign)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(..))
+import Data.Traversable (for)
 
 import DOM (DOM)
 import DOM.HTML.Types (HTMLElement)
@@ -35,7 +37,6 @@ import Halogen.HTML.Properties.Indexed as HP
 
 type EChartsState =
   { element ∷ Maybe HTMLElement
-  , option ∷ Maybe (EM.DSL ETP.OptionI)
   , chart ∷ Maybe ET.Chart
   , width ∷ Int
   , height ∷ Int
@@ -44,7 +45,6 @@ type EChartsState =
 initialEChartsState ∷ Int → Int → EChartsState
 initialEChartsState w h =
   { element: Nothing
-  , option: Nothing
   , chart: Nothing
   , width: w
   , height: h
@@ -60,7 +60,7 @@ data EChartsQuery a
   | Clear a
   | SetHeight Int a
   | SetWidth Int a
-  | GetOptions (Maybe (EM.DSL ETP.OptionI) → a)
+  | GetOptions (Maybe Foreign → a)
   | GetWidth (Int → a)
   | GetHeight (Int → a)
 
@@ -118,13 +118,11 @@ eval (Set opts next) = do
   state ← H.get
   for_ state.chart \chart → do
     H.fromEff (EC.setOption opts chart ∷ Eff (EChartsEffects eff) Unit)
-    H.modify (_{ chart = pure chart, option = pure opts })
   pure next
 eval (Reset opts next) = do
   state ← H.get
   for_ state.chart \chart → do
     H.fromEff (EC.resetOption opts chart ∷ Eff (EChartsEffects eff) Unit)
-    H.modify (_{ chart = pure chart, option = pure opts})
   pure next
 eval (Resize next) = do
   state ← H.get
@@ -149,7 +147,10 @@ eval (SetWidth w next) = do
     H.fromEff (EC.resize chart ∷ Eff (EChartsEffects eff) Unit)
   pure next
 eval (GetOptions continue) = do
-  map continue $ H.gets _.option
+  state ← H.get
+  mbOptions ← for state.chart \chart →
+    H.fromEff (EC.getOption chart ∷ Eff (EChartsEffects eff) Foreign)
+  pure $ continue mbOptions
 eval (GetWidth continue) = do
   map continue $ H.gets _.width
 eval (GetHeight continue) = do
