@@ -15,7 +15,7 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-echarts": "monad",
+    "purescript-echarts": "f6dfca46a7c1daa070841f2674de773f4dc1c9cf",
     "purescript-halogen": "^0.11.0",
     "purescript-halogen-css": "^3.0.0"
   },
