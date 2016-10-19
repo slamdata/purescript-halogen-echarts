@@ -15,7 +15,7 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-echarts": "e4db1328ae6e6ac79ec9c993c12d2b90437bb11c",
+    "purescript-echarts": "ba271eabb727202daa3c81b8d484545f9a616fa7",
     "purescript-halogen": "^0.11.0",
     "purescript-halogen-css": "^3.0.0"
   },
