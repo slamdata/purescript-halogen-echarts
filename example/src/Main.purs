@@ -2,7 +2,6 @@ module Main where
 
 import Prelude
 
-import Control.Bind ((=<<))
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (randomInt, RANDOM)

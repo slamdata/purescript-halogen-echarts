@@ -15,12 +15,12 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-echarts": "9bd42e23ee7ebad22a2a4d9c50cc7dee81668d64",
-    "purescript-halogen": "^0.11.0",
-    "purescript-halogen-css": "^3.0.0"
+    "purescript-halogen": "^0.12.0",
+    "purescript-halogen-css": "^4.0.0",
+    "purescript-echarts": "^3.0.0"
   },
   "devDependencies": {
-    "purescript-debug": "^1.0.0",
-    "purescript-random": "^1.0.0"
+    "purescript-debug": "^2.0.0",
+    "purescript-random": "^2.0.0"
   }
 }

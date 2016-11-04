@@ -6,10 +6,12 @@
     "example": "npm run clean && pulp browserify --include example/src --to example/dist/test.js"
   },
   "dependencies": {
-    "echarts": "^3.2.2",
     "pulp": "^9.0.1",
-    "purescript": "^0.9.2",
-    "purescript-psa": "^0.3.9",
-    "virtual-dom": "^2.1.1"
+    "purescript": "^0.10.1",
+    "purescript-psa": "^0.3.9"
+  },
+  "devDependencies": {
+    "virtual-dom": "^2.1.1",
+    "echarts": "^3.3.1"
   }
 }
