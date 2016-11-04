@@ -2,10 +2,8 @@ module Main where
 
 import Prelude
 
-import Control.Bind ((=<<))
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (randomInt, RANDOM)
 
 import Data.Array ((!!), length, snoc, sort, reverse, head, filter)
@@ -44,8 +42,7 @@ type StateP = H.ParentState State EC.EChartsState Query EC.EChartsQuery AffChart
 type QueryP = Coproduct Query (H.ChildF Slot EC.EChartsQuery)
 
 type AppEffects = EC.EChartsEffects
-  ( err ∷ EXCEPTION
-  , random ∷ RANDOM
+  ( random ∷ RANDOM
   )
 
 type AffCharts = Aff AppEffects
@@ -88,7 +85,7 @@ eval (SetRandomOption ix next) = do
   mbopt ← H.fromEff $ randomInArray options
   case mbopt of
     Nothing → pure unit
-    Just opt → void $ H.query ix $ H.action (EC.Set opt)
+    Just opt → void $ H.query ix $ H.action (EC.Reset opt)
   pure next
 eval (AddChart next) = do
   H.modify (\x → x{arr = snoc x.arr (maybe 0 (add one) $ head $ reverse $ sort x.arr)})
