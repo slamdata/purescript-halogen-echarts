@@ -1,8 +1,7 @@
 # purescript-halogen-echarts
 
-[![Latest release](http://img.shields.io/bower/v/purescript-halogen-echarts.svg)](https://github.com/slamdata/purescript-halogen-echarts/releases)
-[![Build Status](https://travis-ci.org/slamdata/purescript-halogen-echarts.svg?branch=master)](https://travis-ci.org/slamdata/purescript-halogen-echarts)
-[![Dependency Status](https://www.versioneye.com/user/projects/56e950b84e714c003625c374/badge.svg?style=flat)](https://www.versioneye.com/user/projects/56e950b84e714c003625c374)
+[![Latest release](http://img.shields.io/github/release/slamdata/purescript-halogen-echarts.svg)](https://github.com/slamdata/purescript-halogen-echarts/releases)
+[![Build status](https://travis-ci.org/slamdata/purescript-halogen-echarts.svg?branch=master)](https://travis-ci.org/slamdata/purescript-halogen-echarts)
 
 Halogen integration for Echarts via the `purescript-echarts` library.
 
