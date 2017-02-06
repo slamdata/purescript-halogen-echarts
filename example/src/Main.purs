@@ -4,18 +4,20 @@ import Prelude
 
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Random (randomInt, RANDOM)
 
 import Data.Array ((!!), length, snoc, sort, reverse, head, filter)
-import Data.Functor.Coproduct (Coproduct)
+import Data.Foldable (for_)
 import Data.Maybe (Maybe(..), maybe)
+import Data.Tuple.Nested ((/\))
 
 import Halogen as H
 import Halogen.ECharts as EC
-import Halogen.HTML.Events.Indexed as HE
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
-import Halogen.Util (runHalogenAff, awaitBody)
+import Halogen.HTML.Events as HE
+import Halogen.HTML as HH
+import Halogen.Aff (runHalogenAff, awaitBody)
+import Halogen.VDom.Driver (runUI)
 
 import Options (options)
 
@@ -28,30 +30,31 @@ type State =
   { arr ∷ Array Int }
 
 
-initialState ∷ State
-initialState = { arr: [ ] }
+initialState ∷ ∀ a. a → State
+initialState _ = { arr: [ ] }
 
 data Query a
   = SetRandomOption Int a
   | AddChart a
   | RemoveChart Int a
+  | HandleEChartsMessage Int EC.EChartsMessage a
 
 type Slot = Int
 
-type StateP = H.ParentState State EC.EChartsState Query EC.EChartsQuery AffCharts Slot
-type QueryP = Coproduct Query (H.ChildF Slot EC.EChartsQuery)
-
-type AppEffects = EC.EChartsEffects
-  ( random ∷ RANDOM
-  )
+type AppEffects = EC.EChartsEffects ( random ∷ RANDOM )
 
 type AffCharts = Aff AppEffects
 
-type HTML = H.ParentHTML EC.EChartsState Query EC.EChartsQuery AffCharts Slot
-type DSL = H.ParentDSL State EC.EChartsState Query EC.EChartsQuery AffCharts Slot
+type HTML = H.ParentHTML Query EC.EChartsQuery Int AffCharts
+type DSL = H.ParentDSL State Query EC.EChartsQuery Int Void AffCharts
 
-comp ∷ H.Component StateP QueryP AffCharts
-comp = H.parentComponent { render, eval, peek: Just peek }
+comp ∷ H.Component HH.HTML Query Unit Void AffCharts
+comp = H.parentComponent
+  { initialState
+  , render
+  , eval
+  , receiver: const Nothing
+  }
 
 render ∷ State → HTML
 render state =
@@ -64,13 +67,10 @@ render state =
     <> map renderOne state.arr
   where
   renderOne ix =
-    HH.div
-      [ HP.key ("echarts-" <> show ix) ]
+    HH.div_
       [ HH.div_
-          [ HH.slot ix \_ →
-              { component: EC.echarts
-              , initialState: EC.initialEChartsState 400 300
-              }
+          [ HH.slot ix EC.echarts ({width: 400, height: 300} /\ unit)
+              (Just <<< H.action <<< HandleEChartsMessage ix)
           ]
       , HH.button
           [ HE.onClick (HE.input_ (SetRandomOption ix)) ]
@@ -82,10 +82,9 @@ render state =
 
 eval ∷ Query ~> DSL
 eval (SetRandomOption ix next) = do
-  mbopt ← H.fromEff $ randomInArray options
-  case mbopt of
-    Nothing → pure unit
-    Just opt → void $ H.query ix $ H.action (EC.Reset opt)
+  mbopt ← liftEff $ randomInArray options
+  for_ mbopt \opt →
+    void $ H.query ix $ H.action $ EC.Reset opt
   pure next
 eval (AddChart next) = do
   H.modify (\x → x{arr = snoc x.arr (maybe 0 (add one) $ head $ reverse $ sort x.arr)})
@@ -93,14 +92,13 @@ eval (AddChart next) = do
 eval (RemoveChart ix next) = do
   H.modify (\x → x{arr = filter (_ /= ix) x.arr})
   pure next
-
-peek ∷ ∀ x. H.ChildF Int EC.EChartsQuery x → DSL Unit
-peek (H.ChildF ix (EC.Init _)) = do
-  mbopt ← H.fromEff $ randomInArray options
-  case mbopt of
-    Nothing → pure unit
-    Just opt → void $ H.query ix $ H.action (EC.Set opt)
-peek _ = pure unit
+eval (HandleEChartsMessage ix EC.Initialized next) = do
+  mbopt ← liftEff $ randomInArray options
+  for_ mbopt \opt →
+    void $ H.query ix $ H.action $ EC.Set opt
+  pure next
 
 main ∷ Eff AppEffects Unit
-main = runHalogenAff $ H.runUI comp (H.parentState initialState) =<< awaitBody
+main = runHalogenAff do
+  body ← awaitBody
+  runUI comp unit body

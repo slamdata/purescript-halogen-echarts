@@ -1,26 +1,28 @@
 module Halogen.ECharts
   ( echarts
+  , echarts'
   , EChartsState
   , EChartsQuery(..)
-  , initialEChartsState
+  , EChartsMessage(..)
   , EChartsEffects
   ) where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Aff.Free (class Affable)
+import Control.Monad.Aff.Class (class MonadAff)
 
-import Data.Foldable (for_)
+import Data.Foldable (for_, traverse_)
 import Data.Foreign (Foreign)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (for)
+import Data.Tuple.Nested (type (/\), (/\))
 
 import DOM (DOM)
-import DOM.HTML.Types (HTMLElement)
 
 import CSS.Geometry (width, height)
 import CSS.Size (px)
@@ -31,65 +33,73 @@ import ECharts.Monad as EM
 import ECharts.Types.Phantom as ETP
 
 import Halogen as H
-import Halogen.HTML.CSS.Indexed (style)
-import Halogen.HTML.Indexed as HH
-import Halogen.HTML.Properties.Indexed as HP
+import Halogen.HTML.CSS (style)
+import Halogen.HTML as HH
+import Halogen.HTML.Properties as HP
+
 
 type EChartsState =
-  { element ∷ Maybe HTMLElement
-  , chart ∷ Maybe ET.Chart
+  { chart ∷ Maybe ET.Chart
   , width ∷ Int
   , height ∷ Int
   }
 
-initialEChartsState ∷ Int → Int → EChartsState
-initialEChartsState w h =
-  { element: Nothing
-  , chart: Nothing
-  , width: w
-  , height: h
-  }
-
 data EChartsQuery a
-  = SetElement (Maybe HTMLElement) a
-  | Init a
+  = Init a
   | Dispose a
   | Set (EM.DSL ETP.OptionI) a
   | Reset (EM.DSL ETP.OptionI) a
   | Resize a
   | Clear a
-  | SetHeight Int a
-  | SetWidth Int a
+  | SetDimensions { width ∷ Maybe Int, height ∷ Maybe Int } a
   | GetOptions (Maybe Foreign → a)
   | GetWidth (Int → a)
   | GetHeight (Int → a)
+
+data EChartsMessage = Initialized
 
 type EChartsEffects eff =
   ( echarts ∷ ET.ECHARTS
   , dom ∷ DOM
   , avar ∷ AVAR
   , err ∷ EXCEPTION
+  , ref ∷ REF
   | eff
   )
 
+type Dimensions = { width ∷ Int, height ∷ Int }
+
 type HTML = H.ComponentHTML EChartsQuery
-type DSL g = H.ComponentDSL EChartsState EChartsQuery g
+
+type DSL g = H.ComponentDSL EChartsState EChartsQuery EChartsMessage g
 
 echarts
   ∷ ∀ eff g
-  . (Affable (EChartsEffects eff) g)
-  ⇒ H.Component EChartsState EChartsQuery g
-echarts = H.lifecycleComponent
-  { render
+  . (MonadAff (EChartsEffects eff) g)
+  ⇒ H.Component HH.HTML EChartsQuery (Dimensions /\ Unit) EChartsMessage g
+echarts =
+  echarts' \(dim /\ _) →
+    Just $ H.action $ SetDimensions { width: Just dim.width, height: Just dim.height }
+
+echarts'
+  ∷ ∀ eff g i
+  . (MonadAff (EChartsEffects eff) g)
+  ⇒ (Dimensions /\ i → Maybe (EChartsQuery Unit))
+  → H.Component HH.HTML EChartsQuery (Dimensions /\ i)  EChartsMessage g
+echarts' receiver = H.lifecycleComponent
+  { initialState: \({width, height} /\ _) → { width, height, chart: Nothing }
+  , render
   , eval
   , initializer: Just (H.action Init)
   , finalizer: Nothing
+  , receiver
   }
 
-render ∷ EChartsState → HTML
+render
+  ∷ EChartsState → HTML
 render state =
   HH.div
-    [ HP.ref (H.action <<< SetElement)
+    [ HP.ref $ H.RefLabel "echarts"
     , style do
         height $ px $ toNumber state.height
         width $ px $ toNumber state.width
@@ -98,58 +108,46 @@ render state =
 
 eval
   ∷ ∀ eff g
-  . (Affable (EChartsEffects eff) g)
+  . (MonadAff (EChartsEffects eff) g)
   ⇒ EChartsQuery ~> (DSL g)
-eval (SetElement el next) = do
-  H.modify (_ { element = el })
-  pure next
 eval (Init next) = do
-  state ← H.get
-  for_ state.element \el → do
-    chart ← H.fromEff (EC.init el ∷ Eff (EChartsEffects eff) ET.Chart)
-    H.modify (_{chart = pure chart})
+  H.getHTMLElementRef (H.RefLabel "echarts")
+    >>= traverse_ \el → do
+      chart ← liftEff $ EC.init el
+      H.modify _{ chart = Just chart }
+      H.raise Initialized
   pure next
 eval (Dispose next) = do
   state ← H.get
-  for_ state.chart \chart → do
-    H.fromEff (EC.dispose chart ∷ Eff (EChartsEffects eff) Unit)
+  for_ state.chart $ liftEff <<< EC.dispose
   pure next
 eval (Set opts next) = do
   state ← H.get
-  for_ state.chart \chart → do
-    H.fromEff (EC.setOption opts chart ∷ Eff (EChartsEffects eff) Unit)
+  for_ state.chart $ liftEff <<< EC.setOption opts
   pure next
 eval (Reset opts next) = do
   state ← H.get
-  for_ state.chart \chart → do
-    H.fromEff (EC.resetOption opts chart ∷ Eff (EChartsEffects eff) Unit)
+  for_ state.chart $ liftEff <<< EC.resetOption opts
   pure next
 eval (Resize next) = do
   state ← H.get
-  for_ state.chart \chart →
-    H.fromEff (EC.resize chart ∷ Eff (EChartsEffects eff) Unit)
+  for_ state.chart $ liftEff <<< EC.resize
   pure next
 eval (Clear next) = do
   state ← H.get
-  for_ state.chart \chart →
-    H.fromEff (EC.clear chart ∷ Eff (EChartsEffects eff) Unit)
+  for_ state.chart $ liftEff <<< EC.clear
   pure next
-eval (SetHeight h next) = do
-  H.modify (_{height = h})
+eval (SetDimensions { width, height } next) = do
+  for_ width \w → do
+    H.modify _{ width = w }
+  for_ height \h → do
+    H.modify _{ height = h }
   state ← H.get
-  for_ state.chart \chart →
-    H.fromEff (EC.resize chart ∷ Eff (EChartsEffects eff) Unit)
-  pure next
-eval (SetWidth w next) = do
-  H.modify (_{width = w})
-  state ← H.get
-  for_ state.chart \chart →
-    H.fromEff (EC.resize chart ∷ Eff (EChartsEffects eff) Unit)
+  for_ state.chart $ liftEff <<< EC.resize
   pure next
 eval (GetOptions continue) = do
   state ← H.get
-  mbOptions ← for state.chart \chart →
-    H.fromEff (EC.getOption chart ∷ Eff (EChartsEffects eff) Foreign)
+  mbOptions ← for state.chart $ liftEff <<< EC.getOption
   pure $ continue mbOptions
 eval (GetWidth continue) = do
   map continue $ H.gets _.width
