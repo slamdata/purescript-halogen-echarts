@@ -15,7 +15,7 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-halogen": "^1.0.0-rc.2",
+    "purescript-halogen": "^1.0.0",
     "purescript-halogen-css": "^5.0.0-rc.1",
     "purescript-echarts": "^3.0.0"
   },
