@@ -69,7 +69,7 @@ render state =
   renderOne ix =
     HH.div_
       [ HH.div_
-          [ HH.slot ix EC.echarts ({width: 400, height: 300} /\ unit)
+          [ HH.slot ix (EC.echarts Nothing) ({width: 400, height: 300} /\ unit)
               (Just <<< H.action <<< HandleEChartsMessage ix)
           ]
       , HH.button
