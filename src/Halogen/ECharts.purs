@@ -18,7 +18,7 @@ import Control.Monad.Aff.Class (class MonadAff)
 import Data.Foldable (for_, traverse_)
 import Data.Foreign (Foreign)
 import Data.Int (toNumber)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Traversable (for)
 import Data.Tuple.Nested (type (/\), (/\))
 
@@ -28,6 +28,7 @@ import CSS.Geometry (width, height)
 import CSS.Size (px)
 
 import ECharts.Chart as EC
+import ECharts.Theme as ETheme
 import ECharts.Types as ET
 import ECharts.Monad as EM
 import ECharts.Types.Phantom as ETP
@@ -45,7 +46,8 @@ type EChartsState =
   }
 
 data EChartsQuery a
-  = Init a
+  = InitWithTheme (Maybe ETheme.Theme) a
+  | Init a -- Depracated, use `InitWithTheme Nothing` instead
   | Dispose a
   | Set (EM.DSL ETP.OptionI) a
   | Reset (EM.DSL ETP.OptionI) a
@@ -78,19 +80,20 @@ echarts
   . (MonadAff (EChartsEffects eff) g)
   ⇒ H.Component HH.HTML EChartsQuery (Dimensions /\ Unit) EChartsMessage g
 echarts =
-  echarts' \(dim /\ _) →
+  echarts' Nothing \(dim /\ _) →
     Just $ H.action $ SetDimensions { width: Just dim.width, height: Just dim.height }
 
 echarts'
   ∷ ∀ eff g i
   . (MonadAff (EChartsEffects eff) g)
-  ⇒ (Dimensions /\ i → Maybe (EChartsQuery Unit))
+  ⇒ Maybe ETheme.Theme
+  → (Dimensions /\ i → Maybe (EChartsQuery Unit))
   → H.Component HH.HTML EChartsQuery (Dimensions /\ i)  EChartsMessage g
-echarts' receiver = H.lifecycleComponent
+echarts' theme receiver = H.lifecycleComponent
   { initialState: \({width, height} /\ _) → { width, height, chart: Nothing }
   , render
   , eval
-  , initializer: Just (H.action Init)
+  , initializer: Just (H.action $ InitWithTheme theme)
   , finalizer: Nothing
   , receiver
   }
@@ -110,10 +113,11 @@ eval
   ∷ ∀ eff g
   . (MonadAff (EChartsEffects eff) g)
   ⇒ EChartsQuery ~> (DSL g)
-eval (Init next) = do
+eval (Init next) = eval (InitWithTheme Nothing next)
+eval (InitWithTheme theme next) = do
   H.getHTMLElementRef (H.RefLabel "echarts")
     >>= traverse_ \el → do
-      chart ← liftEff $ EC.init el
+      chart ← liftEff $ maybe EC.init EC.initWithTheme theme el
       H.modify _{ chart = Just chart }
       H.raise Initialized
   pure next
