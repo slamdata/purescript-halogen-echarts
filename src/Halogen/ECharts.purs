@@ -63,7 +63,7 @@ type EChartsEffects eff =
   ( echarts ∷ ET.ECHARTS
   , dom ∷ DOM
   , avar ∷ AVAR
-  , err ∷ EXCEPTION
+  , exception ∷ EXCEPTION
   , ref ∷ REF
   | eff
   )
