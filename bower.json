@@ -17,7 +17,7 @@
   "dependencies": {
     "purescript-halogen": "^2.0.0",
     "purescript-halogen-css": "^6.0.0",
-    "purescript-echarts": "^4.0.1"
+    "purescript-echarts": "^5.0.0"
   },
   "devDependencies": {
     "purescript-debug": "^3.0.0",
