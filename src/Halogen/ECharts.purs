@@ -18,7 +18,7 @@ import Control.Monad.Aff.Class (class MonadAff)
 import Data.Foldable (for_, traverse_)
 import Data.Foreign (Foreign)
 import Data.Int (toNumber)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..), maybe, fromMaybe)
 import Data.Traversable (for)
 import Data.Tuple.Nested (type (/\), (/\))
 
@@ -141,12 +141,14 @@ eval (Clear next) = do
   for_ state.chart $ liftEff <<< EC.clear
   pure next
 eval (SetDimensions { width, height } next) = do
-  for_ width \w → do
-    H.modify _{ width = w }
-  for_ height \h → do
-    H.modify _{ height = h }
-  state ← H.get
-  for_ state.chart $ liftEff <<< EC.resize
+  state <- H.get
+  let newWidth = fromMaybe state.width width
+      newHeight = fromMaybe state.height height
+
+  -- Only trigger a resize is the dimensions have actually changed.
+  when (newWidth /= state.width || newHeight /= state.height)
+    do H.modify _{ width = newWidth, height = newHeight }
+       for_ state.chart $ liftEff <<< EC.resize
   pure next
 eval (GetOptions continue) = do
   state ← H.get
