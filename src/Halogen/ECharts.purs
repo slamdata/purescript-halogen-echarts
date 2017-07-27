@@ -18,7 +18,7 @@ import Control.Monad.Aff.Class (class MonadAff)
 import Data.Foldable (for_, traverse_)
 import Data.Foreign (Foreign)
 import Data.Int (toNumber)
-import Data.Maybe (Maybe(..), maybe, fromMaybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Traversable (for)
 import Data.Tuple.Nested (type (/\), (/\))
 
@@ -52,7 +52,7 @@ data EChartsQuery a
   | Reset (EM.DSL ETP.OptionI) a
   | Resize a
   | Clear a
-  | SetDimensions { width ∷ Maybe Int, height ∷ Maybe Int } a
+  | SetDimensions { width ∷ Int, height ∷ Int } a
   | GetOptions (Maybe Foreign → a)
   | GetWidth (Int → a)
   | GetHeight (Int → a)
@@ -81,7 +81,7 @@ echarts
   ⇒ H.Component HH.HTML EChartsQuery (Dimensions /\ Unit) EChartsMessage g
 echarts theme =
   echarts' theme \(dim /\ _) →
-    Just $ H.action $ SetDimensions { width: Just dim.width, height: Just dim.height }
+    Just $ H.action $ SetDimensions dim
 
 echarts'
   ∷ ∀ eff g i
@@ -142,12 +142,10 @@ eval (Clear next) = do
   pure next
 eval (SetDimensions { width, height } next) = do
   state <- H.get
-  let newWidth = fromMaybe state.width width
-      newHeight = fromMaybe state.height height
 
   -- Only trigger a resize is the dimensions have actually changed.
-  when (newWidth /= state.width || newHeight /= state.height)
-    do H.modify _{ width = newWidth, height = newHeight }
+  when (width /= state.width || height /= state.height)
+    do H.modify _{ width = width, height = height }
        for_ state.chart $ liftEff <<< EC.resize
   pure next
 eval (GetOptions continue) = do
