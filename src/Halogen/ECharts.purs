@@ -52,7 +52,7 @@ data EChartsQuery a
   | Reset (EM.DSL ETP.OptionI) a
   | Resize a
   | Clear a
-  | SetDimensions { width ∷ Maybe Int, height ∷ Maybe Int } a
+  | SetDimensions { width ∷ Int, height ∷ Int } a
   | GetOptions (Maybe Foreign → a)
   | GetWidth (Int → a)
   | GetHeight (Int → a)
@@ -81,7 +81,7 @@ echarts
   ⇒ H.Component HH.HTML EChartsQuery (Dimensions /\ Unit) EChartsMessage g
 echarts theme =
   echarts' theme \(dim /\ _) →
-    Just $ H.action $ SetDimensions { width: Just dim.width, height: Just dim.height }
+    Just $ H.action $ SetDimensions dim
 
 echarts'
   ∷ ∀ eff g i
@@ -141,12 +141,12 @@ eval (Clear next) = do
   for_ state.chart $ liftEff <<< EC.clear
   pure next
 eval (SetDimensions { width, height } next) = do
-  for_ width \w → do
-    H.modify _{ width = w }
-  for_ height \h → do
-    H.modify _{ height = h }
-  state ← H.get
-  for_ state.chart $ liftEff <<< EC.resize
+  state <- H.get
+
+  -- Only trigger a resize is the dimensions have actually changed.
+  when (width /= state.width || height /= state.height)
+    do H.modify _{ width = width, height = height }
+       for_ state.chart $ liftEff <<< EC.resize
   pure next
 eval (GetOptions continue) = do
   state ← H.get
