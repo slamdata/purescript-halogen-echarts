@@ -9,35 +9,31 @@ module Halogen.ECharts
 
 import Prelude
 
+import CSS.Geometry (width, height)
+import CSS.Size (px)
+import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Aff.Class (class MonadAff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Ref (REF)
-import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Aff.Class (class MonadAff)
-
+import DOM (DOM)
 import Data.Foldable (for_, traverse_)
 import Data.Foreign (Foreign)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Traversable (for)
 import Data.Tuple.Nested (type (/\), (/\))
-
-import DOM (DOM)
-
-import CSS.Geometry (width, height)
-import CSS.Size (px)
-
 import ECharts.Chart as EC
+import ECharts.Event as EE
+import ECharts.Monad as EM
 import ECharts.Theme as ETheme
 import ECharts.Types as ET
-import ECharts.Monad as EM
 import ECharts.Types.Phantom as ETP
-
 import Halogen as H
-import Halogen.HTML.CSS (style)
 import Halogen.HTML as HH
+import Halogen.HTML.CSS (style)
 import Halogen.HTML.Properties as HP
-
+import Halogen.Query.EventSource as ES
 
 type EChartsState =
   { chart ∷ Maybe ET.Chart
@@ -47,6 +43,7 @@ type EChartsState =
 
 data EChartsQuery a
   = Init (Maybe ETheme.Theme) a
+  | HandleEvent ET.EChartsEvent (H.SubscribeStatus → a)
   | Dispose a
   | Set (EM.DSL ETP.OptionI) a
   | Reset (EM.DSL ETP.OptionI) a
@@ -57,7 +54,9 @@ data EChartsQuery a
   | GetWidth (Int → a)
   | GetHeight (Int → a)
 
-data EChartsMessage = Initialized
+data EChartsMessage
+  = Initialized
+  | EventRaised ET.EChartsEvent
 
 type EChartsEffects eff =
   ( echarts ∷ ET.ECHARTS
@@ -118,8 +117,14 @@ eval (Init theme next) = do
     >>= traverse_ \el → do
       chart ← liftEff $ maybe EC.init EC.initWithTheme theme el
       H.modify _{ chart = Just chart }
+      H.subscribe
+        $ ES.eventSource (EE.listenAll chart)
+        ( Just <<< H.request <<< HandleEvent )
       H.raise Initialized
   pure next
+eval (HandleEvent evt reply) = do
+  H.raise $ EventRaised evt
+  pure $ reply H.Listening
 eval (Dispose next) = do
   state ← H.get
   for_ state.chart $ liftEff <<< EC.dispose

@@ -3,7 +3,8 @@
   "scripts": {
     "clean": "rm -rf output .pulp-cache example/dist/test.js",
     "build": "pulp build -- --censor-lib --strict",
-    "example": "npm run clean && pulp browserify --include example/src --to example/dist/test.js"
+    "example": "pulp browserify --include example/src --to example/dist/test.js",
+    "build:non-strict": "pulp build -- --censor-lib"
   },
   "dependencies": {
     "pulp": "^11.0.0",

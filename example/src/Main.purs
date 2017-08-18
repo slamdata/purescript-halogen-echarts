@@ -6,19 +6,16 @@ import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Random (randomInt, RANDOM)
-
 import Data.Array ((!!), length, snoc, sort, reverse, head, filter)
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\))
-
 import Halogen as H
-import Halogen.ECharts as EC
-import Halogen.HTML.Events as HE
-import Halogen.HTML as HH
 import Halogen.Aff (runHalogenAff, awaitBody)
+import Halogen.ECharts as EC
+import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
-
 import Options (options)
 
 randomInArray ∷ ∀ e a. Array a → Eff (random ∷ RANDOM|e) (Maybe a)
@@ -97,6 +94,9 @@ eval (HandleEChartsMessage ix EC.Initialized next) = do
   for_ mbopt \opt →
     void $ H.query ix $ H.action $ EC.Set opt
   pure next
+eval (HandleEChartsMessage ix (EC.EventRaised evt) next) = do
+  pure next
+
 
 main ∷ Eff AppEffects Unit
 main = runHalogenAff do
