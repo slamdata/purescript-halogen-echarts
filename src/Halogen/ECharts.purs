@@ -53,6 +53,7 @@ data EChartsQuery a
   | GetOptions (Maybe Foreign → a)
   | GetWidth (Int → a)
   | GetHeight (Int → a)
+  | Dispatch ET.EChartsEvent a
 
 data EChartsMessage
   = Initialized
@@ -146,7 +147,7 @@ eval (Clear next) = do
   for_ state.chart $ liftEff <<< EC.clear
   pure next
 eval (SetDimensions { width, height } next) = do
-  state <- H.get
+  state ← H.get
 
   -- Only trigger a resize is the dimensions have actually changed.
   when (width /= state.width || height /= state.height)
@@ -161,3 +162,7 @@ eval (GetWidth continue) = do
   map continue $ H.gets _.width
 eval (GetHeight continue) = do
   map continue $ H.gets _.height
+eval (Dispatch a next) = do
+  state ← H.get
+  for_ state.chart $ EE.dispatch a
+  pure next
