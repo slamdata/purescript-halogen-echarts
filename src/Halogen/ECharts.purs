@@ -25,10 +25,8 @@ import Data.Traversable (for)
 import Data.Tuple.Nested (type (/\), (/\))
 import ECharts.Chart as EC
 import ECharts.Event as EE
-import ECharts.Monad as EM
 import ECharts.Theme as ETheme
 import ECharts.Types as ET
-import ECharts.Types.Phantom as ETP
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.CSS (style)
@@ -45,8 +43,8 @@ data EChartsQuery a
   = Init (Maybe ETheme.Theme) a
   | HandleEvent ET.EChartsEvent (H.SubscribeStatus → a)
   | Dispose a
-  | Set (EM.DSL ETP.OptionI) a
-  | Reset (EM.DSL ETP.OptionI) a
+  | Set ET.Option a
+  | Reset ET.Option a
   | Resize a
   | Clear a
   | SetDimensions { width ∷ Int, height ∷ Int } a
