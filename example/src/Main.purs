@@ -10,6 +10,7 @@ import Data.Array ((!!), length, snoc, sort, reverse, head, filter)
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\))
+import ECharts.Monad (interpret)
 import Halogen as H
 import Halogen.Aff (runHalogenAff, awaitBody)
 import Halogen.ECharts as EC
@@ -81,7 +82,7 @@ eval ∷ Query ~> DSL
 eval (SetRandomOption ix next) = do
   mbopt ← liftEff $ randomInArray options
   for_ mbopt \opt →
-    void $ H.query ix $ H.action $ EC.Reset opt
+    void $ H.query ix $ H.action $ EC.Reset $ interpret opt
   pure next
 eval (AddChart next) = do
   H.modify (\x → x{arr = snoc x.arr (maybe 0 (add one) $ head $ reverse $ sort x.arr)})
@@ -92,7 +93,7 @@ eval (RemoveChart ix next) = do
 eval (HandleEChartsMessage ix EC.Initialized next) = do
   mbopt ← liftEff $ randomInArray options
   for_ mbopt \opt →
-    void $ H.query ix $ H.action $ EC.Set opt
+    void $ H.query ix $ H.action $ EC.Set $ interpret opt
   pure next
 eval (HandleEChartsMessage ix (EC.EventRaised evt) next) = do
   pure next

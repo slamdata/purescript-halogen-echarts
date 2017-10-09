@@ -7,9 +7,9 @@ import Data.Foldable as F
 import ECharts.Commands as E
 import ECharts.Types as ET
 import ECharts.Types.Phantom as ETP
-import ECharts.Monad (DSL)
+import ECharts.Monad (DSL')
 
-lineOptions ∷ DSL ETP.OptionI
+lineOptions ∷ DSL' ETP.OptionI
 lineOptions = do
   E.tooltip E.triggerAxis
   E.legend do
@@ -65,7 +65,7 @@ lineOptions = do
       E.items $ map ET.numItem [ 820.0, 932.0, 901.0, 934.0, 1290.0, 1330.0, 1320.0 ]
 
 
-graphOptions ∷ DSL ETP.OptionI
+graphOptions ∷ DSL' ETP.OptionI
 graphOptions = do
   E.title $ E.text "Graph"
   E.tooltip $ pure unit
@@ -135,7 +135,7 @@ graphOptions = do
           E.targetName "four"
 
 
-radarOptions ∷ DSL ETP.OptionI
+radarOptions ∷ DSL' ETP.OptionI
 radarOptions = do
   E.radar do
     E.indicators do
@@ -167,7 +167,7 @@ radarOptions = do
         E.name "Actual"
         E.values [ 5000.0, 14000.0, 28000.0, 31000.0, 42000.0, 21000.0 ]
 
-kOptions ∷ DSL ETP.OptionI
+kOptions ∷ DSL' ETP.OptionI
 kOptions = do
   E.xAxis do
     E.axisType ET.Category
@@ -187,7 +187,7 @@ kOptions = do
       ]
 
 
-funnelOptions ∷ DSL ETP.OptionI
+funnelOptions ∷ DSL' ETP.OptionI
 funnelOptions = do
   E.series $ E.funnel do
     E.ascending
@@ -206,7 +206,7 @@ funnelOptions = do
         E.value 123.0
 
 
-options ∷ Array (DSL ETP.OptionI)
+options ∷ Array (DSL' ETP.OptionI)
 options =
   [ lineOptions
   , graphOptions

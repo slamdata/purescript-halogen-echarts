@@ -17,10 +17,13 @@
   "dependencies": {
     "purescript-halogen": "^2.2.0",
     "purescript-halogen-css": "^6.0.0",
-    "purescript-echarts": "^7.0.0"
+    "purescript-echarts": "^8.0.0"
   },
   "devDependencies": {
     "purescript-debug": "^3.0.0",
     "purescript-random": "^3.0.0"
+  },
+  "resolutions": {
+    "purescript-aff": "^3.0.0"
   }
 }
