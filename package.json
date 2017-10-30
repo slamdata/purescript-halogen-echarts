@@ -7,11 +7,11 @@
     "build:non-strict": "pulp build -- --censor-lib"
   },
   "dependencies": {
-    "pulp": "^11.0.0",
-    "purescript": "^0.11.4",
-    "purescript-psa": "^0.5.0"
+    "pulp": "^12.0.1",
+    "purescript": "^0.11.6",
+    "purescript-psa": "^0.5.1"
   },
   "devDependencies": {
-    "echarts": "^3.4.0"
+    "echarts": "cryogenian/echarts#item-value-unshift-prebuild"
   }
 }
